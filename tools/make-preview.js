@@ -34,7 +34,7 @@ const nusachHe = { edot_mizrach: 'עדות המזרח', sfard: 'ספרד', ashke
 const page = `<!DOCTYPE html><html lang="he" dir="rtl"><head><meta charset="UTF-8">
 <title>סידורון — תצוגה מקדימה</title><style>${css}</style></head>
 <body><div class="app">
-<header class="header"><div class="header-top"><div class="brand">סידורון · תצוגה מקדימה (${nusachHe})</div></div>
+<header class="header"><div style="font-weight:700;font-size:1.05rem;color:var(--c-on-surface);margin-bottom:6px">סידורון · תצוגה מקדימה (${nusachHe})</div>
 <div class="header-date"><span class="hdr-date">${out.date}</span></div></header>
 <div class="reader-scroll"><h2 class="service-title">${titleHe}</h2>
 <section class="content"><div class="prayer">${out.html}</div></section></div></div></body></html>`;

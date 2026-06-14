@@ -43,9 +43,7 @@ body { overflow: hidden; }
   padding: 10px 14px 0;
   flex: 0 0 auto;
 }
-.header-top { display: flex; align-items: center; justify-content: space-between; }
-.brand { font-weight: 700; font-size: 1.15rem; color: var(--c-on-surface); }
-.header-tools { display: flex; gap: 4px; }
+.header-tools { display: flex; gap: 4px; margin-inline-start: auto; }
 .tool-btn {
   width: 38px; height: 38px; border: none; border-radius: 50%;
   background: transparent; color: var(--c-on-surface-variant);
@@ -55,7 +53,7 @@ body { overflow: hidden; }
 .tool-btn svg { width: 21px; height: 21px; }
 .tool-btn:hover { background: var(--c-primary-subtle); color: var(--c-on-surface); }
 
-.header-date { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin: 6px 0 2px; }
+.header-date { display: flex; align-items: center; gap: 10px; margin: 0 0 2px; }
 .hdr-date { font-size: 1.05rem; font-weight: 600; }
 .hdr-season { font-size: .82rem; color: var(--c-on-surface-variant); }
 
