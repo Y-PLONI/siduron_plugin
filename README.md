@@ -1,6 +1,6 @@
 # סידורון — תוסף "סידור חכם" לאוצריא (v2)
 
-סידור **חול** חכם (שחרית · מנחה · מעריב · ספירת העומר) בנוסחי **עדות המזרח · ספרד · אשכנז**.
+סידור **חול** חכם (שחרית · מנחה · מעריב · ספירת העומר · **תוספות וברכות**) בנוסחי **עדות המזרח · ספרד · אשכנז**.
 התוסף מזהה אוטומטית מה התאריך העברי, אילו חגים/תוספות חלים, ומציג בכל יום את **הנוסח הנכון** —
 יעלה ויבוא, על הנסים, טל/גשם, עשי"ת, תחנון, הלל, מוסף ראש-חודש, ספירת העומר, קריאת התורה ועוד —
 לפי פרופיל המשתמש (נוסח / מגדר / ארץ-ישראל / מניין).
@@ -12,7 +12,9 @@
 | קובץ | תפקיד |
 |------|-------|
 | [vendor/hebcal.js](vendor/hebcal.js) | חבילת הדפדפן הרשמית של `@hebcal/core` (לוח עברי + זמנים, offline). חושף `window.hebcal`. |
-| [data/siddur-data.js](data/siddur-data.js) | **נוצר אוטומטית** — כל קורפוס התפילה (`window.SIDDUR_DATA`). |
+| [data/siddur-data.js](data/siddur-data.js) | **נוצר אוטומטית** — קורפוס שחרית/מנחה/מעריב (`window.SIDDUR_DATA`, מ-smart-siddur). |
+| [data/extras-data.js](data/extras-data.js) | **נוצר אוטומטית** — תוספות וברכות (`window.SIDDUR_EXTRAS`, מ-tfilon). |
+| [js/extras.js](js/extras.js) | תפריט התוספות + רינדור, עם מעריך-תנאים שממיר תגי-תנאי של tfilon ל-flags (כך שיעלה-ויבוא בברכת המזון מופיע רק בר"ח, על-הנסים רק בחנוכה/פורים וכו'). |
 | [js/calendar.js](js/calendar.js) | מנוע ה-flags ההלכתי. ניוד נאמן של `halachic_calendar_service.dart` מ-smart-siddur מעל hebcal → `flagsFor(date, ctx)`. |
 | [js/assembler.js](js/assembler.js) | הרכבת התפילה: gate של `condition_flags`/`exclude_flags` ברמת template וברמת section, רקורסיה ל-sub-templates, ו-post-processors (עומר, קרבנות, קריאת שני/חמישי, ר"ח טבת, שיר-של-יום גר"א). |
 | [js/render.js](js/render.js) | המרת הקטעים המורכבים ל-HTML: כותרות-קטעים, אקורדיונים לתוכן רשות/מקובץ (חזרת הש"ץ), שימור `<b>`. |
@@ -26,7 +28,8 @@
 הקורפוס מנויד מ-`smart-siddur/assets/prayers` (חייב להיות נוכח באותה תיקייה):
 
 ```bash
-node tools/build-data.js     # → data/siddur-data.js  (~1.9MB)
+node tools/build-data.js     # → data/siddur-data.js   (~1.9MB, מ-smart-siddur)
+node tools/build-extras.js   # → data/extras-data.js   (~0.5MB, מ-tfilon)
 ```
 
 `vendor/hebcal.js` הופק מ-`@hebcal/core@5.10.1` (`dist/bundle.min.js`).
@@ -37,8 +40,9 @@ node tools/build-data.js     # → data/siddur-data.js  (~1.9MB)
 node tools/test-calendar.js      # flags על תאריכים מייצגים
 node tools/test-assemble.js      # הרכבה מקצה-לקצה
 node tools/test-fuzz.js          # שנתיים × 3 נוסחים × 4 שירותים × א"י/חו"ל (17,520 הרכבות)
+node tools/test-extras.js        # תוספות: רינדור בכל נוסח + תנאים (יעלה-ויבוא/על-הנסים)
 node tools/test-dom.js           # טעינת התוסף המלא ב-jsdom (ללא אוצריא)
-node tools/test-interactions.js  # חיווט ה-UI (נוסח/צנזור/ניווט/טאבים)
+node tools/test-interactions.js  # חיווט ה-UI (נוסח/צנזור/ניווט/טאבים/תוספות)
 node tools/make-preview.js [YYYY-MM-DD] [nusach] [service]   # → preview.html לתצוגה בדפדפן
 ```
 

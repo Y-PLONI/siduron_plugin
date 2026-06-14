@@ -13,7 +13,7 @@ const dom = new JSDOM(fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8'),
 const win = dom.window, doc = win.document;
 const errors = [];
 win.addEventListener('error', e => errors.push(e.error && e.error.stack || e.message));
-for (const f of ['vendor/hebcal.js', 'data/siddur-data.js', 'js/calendar.js', 'js/assembler.js', 'js/render.js', 'js/app.js']) {
+for (const f of ['vendor/hebcal.js', 'data/siddur-data.js', 'data/extras-data.js', 'js/calendar.js', 'js/assembler.js', 'js/render.js', 'js/extras.js', 'js/app.js']) {
   const s = doc.createElement('script'); s.textContent = fs.readFileSync(path.join(ROOT, f), 'utf8');
   doc.body.appendChild(s);
 }
@@ -74,6 +74,24 @@ setTimeout(function () {
   const tabs = doc.querySelectorAll('#tabs .tab');
   let mincha = null; tabs.forEach(t => { if (t.textContent === 'מנחה') mincha = t; });
   if (mincha) { mincha.onclick.call(mincha); check('switched to Mincha', win.SiduronApp.state.service === 'mincha'); }
+
+  // Extras (תוספות) tab → menu → open an extra → back.
+  const tabs2 = doc.querySelectorAll('#tabs .tab');
+  let extrasTab = null; tabs2.forEach(t => { if (t.textContent === 'תוספות') extrasTab = t; });
+  check('extras tab present', !!extrasTab);
+  if (extrasTab) {
+    extrasTab.onclick.call(extrasTab);
+    const cards = doc.querySelectorAll('#content [data-extra]');
+    check('extras menu shows items', cards.length >= 8);
+    const bm = doc.querySelector('#content [data-extra="birkat_hamazon"]');
+    if (bm) {
+      bm.onclick.call(bm);
+      check('birkat hamazon renders in extras view', content().length > 3000 && /יהוה|הַזָּ|בְרִיךְ/.test(content()));
+      const back = doc.getElementById('extras-back');
+      check('back-to-list button present', !!back);
+      if (back) { back.onclick.call(back); check('back returns to menu', !!doc.querySelector('#content [data-extra]')); }
+    }
+  }
 
   check('no runtime errors', errors.length === 0);
   console.log(`\n=== INTERACTIONS: ${fail === 0 ? 'PASS' : 'FAIL'} (${pass} passed, ${fail} failed) ===`);

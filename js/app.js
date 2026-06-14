@@ -21,6 +21,7 @@
     censorNames: false,
     fontSize: 22,
     service: null,              // current service id
+    extra: null,                // current extra id (within the תוספות view)
     date: null,                 // JS Date (the day we're rendering)
     dayFlags: null,
     nav: [],
@@ -32,6 +33,7 @@
     { id: 'maariv', he: 'מעריב', template: function (n) { return 'maariv_' + n; } },
     { id: 'omer', he: 'ספירת העומר', template: function (n) { return 'sefirat_haomer_' + n; },
       showIf: function () { return STATE.dayFlags && STATE.dayFlags.omerDay != null; } },
+    { id: 'extras', he: 'תוספות', extras: true },
   ];
 
   var NUSACHIM = [
@@ -53,14 +55,14 @@
     tisha_beav: ['תשעה באב', 'b-red'], omer_period: ['ספירת העומר', 'b-teal'],
     tu_bishvat: ['ט״ו בשבט', 'b-green'], lag_baomer: ['ל״ג בעומר', 'b-amber'],
     isru_chag: ['אסרו חג', 'b-green'], pesach_sheni: ['פסח שני', 'b-green'],
-    tu_bav: ['ט״ו באב', 'b-green'],
+    tu_bav: ['ט״ו באב', 'b-green'], yom_kippur_katan: ['יום כיפור קטן', 'b-purple'],
   };
   // Order badges appear in.
   var BADGE_ORDER = ['shabbat', 'rosh_hashanah', 'yom_kippur', 'aseret_yemei_teshuva',
     'pesach', 'chol_hamoed_pesach', 'shavuot', 'sukkot', 'chol_hamoed_sukkot',
     'hoshana_raba', 'shemini_atzeret', 'simchat_torah', 'rosh_chodesh', 'chanukah',
     'purim', 'fast_day', 'tisha_beav', 'tu_bishvat', 'lag_baomer', 'tu_bav',
-    'pesach_sheni', 'isru_chag', 'omer_period'];
+    'pesach_sheni', 'isru_chag', 'yom_kippur_katan', 'omer_period'];
 
   /* ────────────── Otzaria SDK helpers ────────────── */
   function hasOtzaria() { return typeof window.Otzaria !== 'undefined' && window.Otzaria.call; }
@@ -239,6 +241,10 @@
     STATE.service = id;
     storageSet('service', id);
     renderTabs();
+
+    if (svc.extras) { renderExtrasView(); return; }
+    STATE.extra = null;
+
     var contentEl = document.getElementById('content');
     var templateId = svc.template(STATE.nusach);
     var result;
@@ -255,6 +261,40 @@
     contentEl.innerHTML = '<div class="prayer fade-in">' + applyCensor(result.html) + '</div>';
     contentEl.scrollTop = 0;
     var sc = document.getElementById('reader-scroll'); if (sc) sc.scrollTop = 0;
+    renderNavList();
+  }
+
+  /* ────────────── Extras (תוספות) view ────────────── */
+  function renderExtrasView() {
+    var contentEl = document.getElementById('content');
+    var titleEl = document.getElementById('hdr-title');
+    var sc = document.getElementById('reader-scroll'); if (sc) sc.scrollTop = 0;
+    contentEl.scrollTop = 0;
+
+    if (!window.SiduronExtras) { contentEl.innerHTML = '<div class="muted center">התוספות לא נטענו.</div>'; return; }
+
+    if (!STATE.extra) {
+      // Menu of extras.
+      if (titleEl) titleEl.textContent = 'תוספות וברכות';
+      STATE.nav = [];
+      contentEl.innerHTML = '<div class="extras-menu fade-in">' + window.SiduronExtras.renderMenu() + '</div>';
+      var cards = contentEl.querySelectorAll('[data-extra]');
+      for (var i = 0; i < cards.length; i++) {
+        cards[i].onclick = function () { STATE.extra = this.getAttribute('data-extra'); renderExtrasView(); };
+      }
+      return;
+    }
+    // A specific extra.
+    var item = null, list = window.SiduronExtras.list();
+    for (var k = 0; k < list.length; k++) if (list[k].id === STATE.extra) item = list[k];
+    if (titleEl) titleEl.textContent = item ? item.title : 'תוספת';
+    var result = window.SiduronExtras.renderExtra(STATE.extra, STATE.nusach, STATE.dayFlags);
+    STATE.nav = result.nav || [];
+    contentEl.innerHTML =
+      '<button class="extras-back" id="extras-back">‹ חזרה לרשימת התוספות</button>' +
+      '<div class="prayer fade-in">' + applyCensor(result.html) + '</div>';
+    var back = document.getElementById('extras-back');
+    if (back) back.onclick = function () { STATE.extra = null; renderExtrasView(); };
     renderNavList();
   }
 

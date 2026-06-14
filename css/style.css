@@ -210,6 +210,38 @@ body { overflow: hidden; }
 .fs-btn:hover { background: var(--c-primary-subtle); }
 .fs-val { min-width: 26px; text-align: center; font-size: .85rem; font-variant-numeric: tabular-nums; }
 
+/* ── Extras (תוספות) ── */
+.extras-menu { max-width: 760px; margin: 0 auto; padding: 8px 18px; }
+.extras-cat {
+  font-size: .85rem; font-weight: 700; color: var(--c-on-surface-variant);
+  margin: 18px 4px 8px; text-transform: none;
+}
+.extras-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.extra-card {
+  border: 1px solid var(--c-outline-variant); background: var(--c-surface-container);
+  color: var(--c-on-surface); border-radius: var(--radius-sm); padding: 16px 14px;
+  font-size: 1rem; font-weight: 600; cursor: pointer; font-family: var(--prayer-font);
+  text-align: center; transition: .15s;
+}
+.extra-card:hover { background: var(--c-primary-subtle); border-color: var(--c-primary); }
+.extras-back {
+  display: inline-block; margin: 6px 0 4px; border: none; background: transparent;
+  color: var(--c-primary); font-size: .95rem; font-weight: 600; cursor: pointer; font-family: inherit;
+}
+.extras-back:hover { text-decoration: underline; }
+
+/* Instruction (rubric) + special-day inserts inside prayer text */
+.s-instruction {
+  font-family: var(--ui-font); font-size: .8em; color: var(--c-on-surface-variant);
+  font-style: italic; margin: 8px 0; padding: 4px 12px;
+  border-inline-start: 3px solid var(--c-outline-variant); background: var(--c-surface-container);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+.s-special {
+  margin: 8px 0; padding: 6px 12px; border-radius: var(--radius-sm);
+  background: var(--c-primary-subtle); border-inline-start: 3px solid var(--c-primary);
+}
+
 /* ── Utilities ── */
 .muted { color: var(--c-on-surface-variant); }
 .center { text-align: center; padding: 40px 16px; }

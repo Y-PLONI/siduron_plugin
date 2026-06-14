@@ -70,8 +70,9 @@
   function classify(date, il) {
     var hd = new H.HDate(date);
     var evs = H.HebrewCalendar.calendar({
-      start: hd, end: hd, il: il, sedrot: true, omer: true,
+      start: hd, end: hd, il: il, sedrot: true, omer: true, yomKippurKatan: true,
     });
+    var isYomKippurKatan = false;
 
     var yt = {};            // set of yom-tov tokens
     var isRC = false, isCholHaMoedPesach = false, isCholHaMoedSukkot = false;
@@ -87,6 +88,8 @@
       if (fl & F.ROSH_CHODESH) isRC = true;
       if (fl & (F.MINOR_FAST | F.MAJOR_FAST)) isTaanis = true;
       if (fl & F.OMER_COUNT) { omerDay = e.omer; }
+
+      if (/Yom Kippur Katan/i.test(d)) isYomKippurKatan = true;
 
       // Chanukah ("Chanukah: N Candles" / "Chanukah: N Candle" / "8th Day")
       if (/^Chanukah/.test(d)) {
@@ -154,6 +157,7 @@
       isChanukah: isChan,
       chanukahDay: chanukahDay,
       isTaanis: isTaanis,
+      isYomKippurKatan: isYomKippurKatan,
       omerDay: (omerDay >= 1 && omerDay <= 49) ? omerDay : null,
       parsha: computeUpcomingParshah(hd, il),
     };
@@ -348,6 +352,7 @@
       f.add(DF.graSsyDay);
     }
     if (chanukahDay != null) f.add('chanukah_day_' + chanukahDay);
+    if (c.isYomKippurKatan) f.add('yom_kippur_katan');
 
     return {
       flags: Object.keys(set),
