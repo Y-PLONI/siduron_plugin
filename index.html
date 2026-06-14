@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>סידורון</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="app">
+    <!-- סרגל צד: נוסח + רשימת תפילות -->
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <span class="brand-title">סידורון</span>
+      </div>
+      <div class="nusach-bar" id="nusach-bar"></div>
+      <nav class="menu" id="menu"></nav>
+      <div class="sidebar-foot muted">
+        תוספות התפילה מזוהות אוטומטית לפי תאריך וזמני אוצריא
+      </div>
+    </aside>
+
+    <!-- אזור ראשי -->
+    <main class="main">
+      <header class="header">
+        <button class="icon-btn" id="menu-toggle" aria-label="תפריט">☰</button>
+        <div class="header-info">
+          <div class="hdr-date" id="hdr-date"></div>
+          <div class="hdr-holidays" id="hdr-holidays"></div>
+        </div>
+        <div class="hdr-times" id="hdr-times"></div>
+      </header>
+
+      <div class="reader-scroll" id="reader-scroll">
+        <section class="content" id="content">
+          <div class="muted center">טוען…</div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <script src="js/parser.js"></script>
+  <script src="js/conditions.js"></script>
+  <script src="js/catalog.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
