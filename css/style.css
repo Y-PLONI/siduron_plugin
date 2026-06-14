@@ -1,266 +1,217 @@
-/* ---------- גופן התוסף: Segoe UI (מצורף ב-fonts/) ---------- */
-@font-face {
-  font-family: 'Segoe UI'; font-style: normal; font-weight: 400;
-  src: url('../fonts/segoeui.ttf') format('truetype'); font-display: swap;
-}
-@font-face {
-  font-family: 'Segoe UI'; font-style: normal; font-weight: 600;
-  src: url('../fonts/seguisb.ttf') format('truetype'); font-display: swap;
-}
-@font-face {
-  font-family: 'Segoe UI'; font-style: normal; font-weight: 700;
-  src: url('../fonts/segoeuib.ttf') format('truetype'); font-display: swap;
-}
-@font-face {
-  font-family: 'Segoe UI'; font-style: italic; font-weight: 400;
-  src: url('../fonts/segoeuii.ttf') format('truetype'); font-display: swap;
-}
+/* style.css — Siduron v2. Material-3-aligned, RTL, theme-variable driven. */
 
 :root {
-  /* צבעים — ברירת מחדל; מוחלפים ע"י applyTheme מנתוני אוצריא */
-  --color-primary: #6750A4; --color-on-primary: #FFFFFF;
-  --color-secondary: #625B71; --color-on-secondary: #FFFFFF;
-  --color-secondary-container: #E8DEF8; --color-on-secondary-container: #1D192B;
-  --color-surface: #FFFBFE; --color-on-surface: #1C1B1F;
-  --color-on-surface-variant: #49454F;
-  --color-surface-container: #F3EDF7;
-  --color-surface-container-high: #ECE6F0;
-  --color-surface-container-highest: #E6E0E9;
-  --color-error: #B3261E; --color-on-error: #FFFFFF;
-  --color-outline: #79747E; --color-outline-variant: #CAC4D0;
-  --color-primary-subtle: rgba(103,80,164,0.12);
-  --color-secondary-subtle: rgba(98,91,113,0.12);
-  --font-main: 'Segoe UI', 'Segoe', 'David', sans-serif;
-  --font-size-base: 20px;
-  --line-height: 1.6;
-  --radius-sm: 8px; --radius-md: 12px; --radius-lg: 16px; --radius-pill: 999px;
+  --c-primary: #6750A4;
+  --c-on-primary: #ffffff;
+  --c-secondary: #625B71;
+  --c-secondary-container: #E8DEF8;
+  --c-on-secondary-container: #1D192B;
+  --c-surface: #FEF7FF;
+  --c-on-surface: #1D1B20;
+  --c-on-surface-variant: #49454F;
+  --c-surface-container: #F3EDF7;
+  --c-surface-container-high: #ECE6F0;
+  --c-surface-container-highest: #E6E0E9;
+  --c-outline: #79747E;
+  --c-outline-variant: #CAC4D0;
+  --c-error: #B3261E;
+  --c-primary-subtle: rgba(103, 80, 164, 0.12);
+
+  --font-size-base: 22px;
+  --line-height: 1.85;
+  --ui-font: 'Heebo', 'Segoe UI', 'Noto Sans Hebrew', system-ui, sans-serif;
+  --prayer-font: 'FrankRuhlCLM', 'Frank Ruhl Libre', 'David', 'Noto Serif Hebrew', serif;
+  --radius: 16px;
+  --radius-sm: 10px;
 }
 
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-body {
-  font-family: var(--font-main);
-  font-size: var(--font-size-base);
-  line-height: var(--line-height);
-  background: var(--color-surface);
-  color: var(--color-on-surface);
-  direction: rtl;
-  height: 100vh;
-  overflow: hidden;
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0; height: 100%;
+  background: var(--c-surface);
+  color: var(--c-on-surface);
+  font-family: var(--ui-font);
 }
+body { overflow: hidden; }
 
-.app { display: flex; height: 100vh; }
+.app { display: flex; flex-direction: column; height: 100vh; }
 
-/* ---------- סרגל צד ---------- */
-.sidebar {
-  width: 250px; flex-shrink: 0;
-  background: var(--color-surface-container);
-  border-inline-start: 1px solid var(--color-outline-variant);
-  display: flex; flex-direction: column;
-  overflow-y: auto;
-}
-.brand { padding: 16px 18px 8px; }
-.brand-title { font-size: 1.4em; font-weight: 700; color: var(--color-primary); }
-.nusach-bar { display: flex; flex-wrap: wrap; gap: 6px; }
-.pill {
-  border: 1px solid var(--color-outline); background: transparent;
-  color: var(--color-on-surface); border-radius: var(--radius-pill);
-  padding: 4px 12px; font-family: var(--font-main); font-size: 0.72em;
-  font-weight: 600; cursor: pointer; transition: background .15s, color .15s;
-}
-.pill.active { background: var(--color-primary); color: var(--color-on-primary); border-color: var(--color-primary); }
-.pill:hover:not(.active) { background: var(--color-secondary-subtle); }
-
-.menu { flex: 1; padding: 4px 10px; }
-.menu-item {
-  display: block; width: 100%; text-align: start;
-  background: transparent; border: none; border-radius: var(--radius-sm);
-  padding: 9px 12px; margin-bottom: 2px;
-  font-family: var(--font-main); font-size: 0.82em; color: var(--color-on-surface);
-  cursor: pointer; transition: background .15s;
-}
-.menu-item:hover { background: var(--color-secondary-subtle); }
-.menu-item.selected { background: var(--color-primary-subtle); color: var(--color-primary); font-weight: 700; }
-.sidebar-foot { padding: 12px 16px; font-size: 0.62em; border-top: 1px solid var(--color-outline-variant); }
-
-/* ---------- אזור ראשי ---------- */
-.main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+/* ── Header ── */
 .header {
-  position: relative;
-  display: flex; align-items: center; gap: 10px;
-  padding: 5px 14px; min-height: 40px;
-  background: var(--color-surface-container-high);
-  border-bottom: 1px solid var(--color-outline-variant);
+  background: var(--c-surface-container);
+  border-bottom: 1px solid var(--c-outline-variant);
+  padding: 10px 14px 0;
+  flex: 0 0 auto;
 }
-.icon-btn {
-  display: none; background: transparent; border: none; color: var(--color-on-surface);
-  font-size: 1.2em; cursor: pointer; padding: 4px 8px;
-}
+.header-top { display: flex; align-items: center; justify-content: space-between; }
+.brand { font-weight: 700; font-size: 1.15rem; color: var(--c-on-surface); }
+.header-tools { display: flex; gap: 4px; }
 .tool-btn {
-  display: inline-flex; align-items: center; justify-content: center;
-  background: transparent; border: none; color: var(--color-on-surface);
-  font-size: 1.15em; line-height: 1; cursor: pointer;
-  padding: 6px 9px; border-radius: var(--radius-sm); transition: background .15s;
+  width: 38px; height: 38px; border: none; border-radius: 50%;
+  background: transparent; color: var(--c-on-surface-variant);
+  cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+  transition: background .15s;
 }
-.tool-btn:hover { background: var(--color-secondary-subtle); }
-.fi-svg { width: 1.25em; height: 1.25em; display: block; }
-/* קבוצת לחצני הכלים — נדחפת לקצה ההתחלתי-הפוך (שמאל ב-RTL) */
-.header-tools { margin-inline-start: auto; display: flex; align-items: center; gap: 2px; }
-.header-info { display: flex; flex-direction: row; align-items: center; gap: 8px; min-width: 0; }
-.hdr-date { font-size: 0.78em; font-weight: 700; color: var(--color-primary); white-space: nowrap; }
-.hdr-holidays { display: flex; gap: 5px; }
-.chip {
-  background: var(--color-primary-subtle); color: var(--color-primary);
-  border-radius: var(--radius-pill); padding: 1px 8px; font-size: 0.6em; font-weight: 600;
+.tool-btn svg { width: 21px; height: 21px; }
+.tool-btn:hover { background: var(--c-primary-subtle); color: var(--c-on-surface); }
+
+.header-date { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin: 6px 0 2px; }
+.hdr-date { font-size: 1.05rem; font-weight: 600; }
+.hdr-season { font-size: .82rem; color: var(--c-on-surface-variant); }
+
+.hdr-badges { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.badge {
+  font-size: .74rem; font-weight: 600; padding: 3px 10px; border-radius: 999px;
+  background: var(--c-secondary-container); color: var(--c-on-secondary-container);
   white-space: nowrap;
 }
-/* שם התפילה הפעילה — ממורכז בכותרת */
-.hdr-title {
-  position: absolute; left: 50%; transform: translateX(-50%);
-  max-width: 50%; text-align: center; pointer-events: none;
-  font-size: 0.95em; font-weight: 700; color: var(--color-on-surface);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
+.badge.b-blue   { background: #DCE7FF; color: #0B3D91; }
+.badge.b-green  { background: #D7F0DC; color: #14502A; }
+.badge.b-amber  { background: #FCEBC8; color: #6B4E00; }
+.badge.b-red    { background: #FBDAD7; color: #8C1D18; }
+.badge.b-purple { background: #ECE0FF; color: #3F2A6B; }
+.badge.b-teal   { background: #CDEFEC; color: #0B4C49; }
+.badge.b-ghost  { background: transparent; color: var(--c-on-surface-variant); border: 1px solid var(--c-outline-variant); }
 
-/* ---------- חלוניות צד צפות ---------- */
-.panel-backdrop {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.22);
-  z-index: 59; display: none;
-}
-.panel-backdrop.open { display: block; }
-.float-panel {
-  position: fixed; top: 48px; inset-inline-end: 16px;
-  width: 300px; max-height: calc(100vh - 84px); overflow-y: auto;
-  background: var(--color-surface-container-high);
-  border: 1px solid var(--color-outline-variant);
-  border-radius: var(--radius-lg);
-  box-shadow: 0 10px 30px rgba(0,0,0,0.24);
-  z-index: 60; padding: 10px 0;
-  opacity: 0; transform: translateY(-8px); pointer-events: none;
-  transition: opacity .18s ease-out, transform .18s ease-out;
-}
-.float-panel.open { opacity: 1; transform: none; pointer-events: auto; }
-.float-panel-head {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 2px 16px 10px; font-size: 0.95em; font-weight: 700; color: var(--color-primary);
-  border-bottom: 1px solid var(--color-outline-variant); margin-bottom: 6px;
-}
-.float-panel-body { padding: 4px 16px 6px; }
-.settings-section { margin-bottom: 16px; }
-.settings-section:last-child { margin-bottom: 4px; }
-.settings-label {
-  font-size: 0.78em; font-weight: 700; color: var(--color-on-surface-variant);
-  margin-bottom: 8px;
-}
-.font-size-ctl { display: flex; align-items: center; gap: 12px; }
-.fs-btn {
-  width: 34px; height: 34px; border-radius: var(--radius-sm);
-  border: 1px solid var(--color-outline); background: transparent;
-  color: var(--color-on-surface); font-size: 1.1em; font-weight: 700;
-  cursor: pointer; line-height: 1; transition: background .15s;
-}
-.fs-btn:hover { background: var(--color-secondary-subtle); }
-.fs-val {
-  min-width: 38px; text-align: center; font-size: 0.9em; font-weight: 700;
-  color: var(--color-primary);
-}
+.dark .badge.b-blue   { background: #21304f; color: #BFD4FF; }
+.dark .badge.b-green  { background: #1d3a27; color: #B8E6C4; }
+.dark .badge.b-amber  { background: #4a3a14; color: #F4D58A; }
+.dark .badge.b-red    { background: #4d211e; color: #F6B4AE; }
+.dark .badge.b-purple { background: #342450; color: #D6C2FF; }
+.dark .badge.b-teal   { background: #103e3b; color: #9FE0DB; }
 
-#hdr-times { display: flex; flex-direction: column; }
-.zman {
-  display: flex; flex-direction: row; align-items: baseline; justify-content: space-between;
-  gap: 12px; padding: 7px 2px; border-bottom: 1px dashed var(--color-outline-variant);
+/* ── Tabs ── */
+.tabs { display: flex; gap: 4px; margin-top: 4px; overflow-x: auto; }
+.tab {
+  border: none; background: transparent; color: var(--c-on-surface-variant);
+  padding: 10px 16px; font-size: .95rem; font-weight: 600; cursor: pointer;
+  border-bottom: 3px solid transparent; white-space: nowrap; font-family: inherit;
 }
-.zman:last-child { border-bottom: none; }
-.z-name { font-size: 0.82em; color: var(--color-on-surface-variant); white-space: nowrap; }
-.z-val { font-size: 0.88em; font-weight: 700; white-space: nowrap; }
+.tab:hover { color: var(--c-on-surface); }
+.tab.active { color: var(--c-primary); border-bottom-color: var(--c-primary); }
 
-/* ---------- אזור קריאה ---------- */
-.reader-scroll { flex: 1; overflow-y: auto; }
-.content { max-width: 820px; margin: 0 auto; padding: 24px 28px 80px; }
+/* ── Reader ── */
+.reader-scroll { flex: 1 1 auto; overflow-y: auto; padding: 8px 0 80px; }
 .service-title {
-  text-align: center; color: var(--color-primary);
-  font-size: 1.5em; font-weight: 700; margin-bottom: 18px;
-  padding-bottom: 10px; border-bottom: 2px solid var(--color-primary-subtle);
+  text-align: center; font-size: 1.4rem; font-weight: 700; margin: 14px 0 4px;
+  color: var(--c-primary); font-family: var(--prayer-font);
 }
+.content { max-width: 760px; margin: 0 auto; padding: 0 18px; }
 
-/* ---------- אלמנטים של התפילה ---------- */
-.prayer { text-align: justify; }
-.s-line { margin: 0; }
-.s-gap { height: 0.7em; }
-.s-include { margin: 0; }
-
-.s-mark {
-  text-align: center; color: var(--color-primary);
-  font-size: 1.15em; font-weight: 700; margin: 22px 0 10px;
+.prayer {
+  font-family: var(--prayer-font);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height);
+  text-align: justify;
 }
-.s-phead { font-weight: 700; color: var(--color-primary); }
-.s-linehead { font-weight: 700; color: var(--color-secondary); margin-inline-end: 4px; }
+.fade-in { animation: fade .25s ease; }
+@keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 
-.s-note {
-  color: var(--color-on-surface-variant); font-size: 0.78em;
-  background: var(--color-secondary-subtle); border-radius: var(--radius-sm);
-  padding: 6px 12px; margin: 8px 0; line-height: 1.5;
+.s-section {
+  font-size: 1.05em; font-weight: 700; color: var(--c-primary);
+  margin: 22px 0 6px; padding-bottom: 4px;
+  border-bottom: 2px solid var(--c-primary-subtle);
+  font-family: var(--ui-font);
 }
-.s-inline-note { color: var(--color-on-surface-variant); font-size: 0.8em; }
-.s-inline-fix { color: var(--color-on-surface); }
-.s-direct {
-  color: var(--color-secondary); font-size: 0.82em; font-style: italic;
-  border-inline-start: 3px solid var(--color-secondary-subtle); padding-inline-start: 10px; margin: 8px 0;
+.s-subsection {
+  font-size: .8em; font-weight: 700; color: var(--c-on-surface-variant);
+  margin: 14px 0 2px; font-family: var(--ui-font);
 }
+.s-seg { margin-bottom: 10px; }
+.s-line { margin: 2px 0; }
+.s-line b, .prayer b { font-weight: 800; color: var(--c-primary); }
 
-.s-add { margin: 6px 0; }
-
-/* תוספות מותנות */
-.s-cond { margin: 10px 0; border-radius: var(--radius-md); }
-.s-cond-on {
-  background: var(--color-primary-subtle);
-  border: 1px solid var(--color-primary); padding: 10px 14px;
+/* Accordions (optional / grouped content) */
+.s-optional, .s-group {
+  margin: 10px 0; border: 1px dashed var(--c-outline-variant);
+  border-radius: var(--radius-sm); background: var(--c-surface-container);
+  padding: 2px 12px;
 }
-.s-cond-badge {
-  display: inline-block; background: var(--color-primary); color: var(--color-on-primary);
-  font-size: 0.62em; font-weight: 700; border-radius: var(--radius-pill);
-  padding: 2px 10px; margin-bottom: 8px;
+.s-optional > summary, .s-group > summary {
+  cursor: pointer; font-family: var(--ui-font); font-size: .9rem; font-weight: 600;
+  color: var(--c-on-surface-variant); padding: 8px 2px; list-style: none;
 }
-.s-cond-off {
-  background: var(--color-surface-container); border: 1px dashed var(--color-outline);
-  padding: 6px 12px;
+.s-optional > summary::-webkit-details-marker, .s-group > summary::-webkit-details-marker { display: none; }
+.s-optional > summary::before, .s-group > summary::before { content: '▸ '; color: var(--c-primary); }
+.s-optional[open] > summary::before, .s-group[open] > summary::before { content: '▾ '; }
+.s-hint { font-weight: 400; opacity: .7; font-size: .8em; }
+.s-optional-body, .s-group-body { padding: 4px 0 10px; }
+
+/* ── Floating panels (rounded card, slides in from the left) ── */
+.backdrop {
+  position: fixed; inset: 0; background: rgba(0,0,0,.32);
+  opacity: 0; pointer-events: none; transition: opacity .18s ease-out; z-index: 1000;
 }
-.s-cond-off > summary {
-  cursor: pointer; color: var(--color-on-surface-variant); font-size: 0.78em; font-weight: 600;
-  list-style: none;
+.backdrop.open { opacity: 1; pointer-events: auto; }
+.panel {
+  position: fixed; top: 10px; bottom: 12px; left: 10px; right: auto;
+  width: min(380px, 92vw);
+  background: var(--c-surface-container-high); color: var(--c-on-surface);
+  border-radius: 24px; box-shadow: 0 8px 28px rgba(0,0,0,.22);
+  z-index: 1001; display: flex; flex-direction: column; overflow: hidden;
+  opacity: 0; transform: translateX(-28px); pointer-events: none;
+  transition: opacity .18s ease-out, transform .22s cubic-bezier(.2, 0, 0, 1);
 }
-.s-cond-off > summary::-webkit-details-marker { display: none; }
-.s-cond-hint { font-weight: 400; opacity: 0.8; }
-.s-cond-body { margin-top: 8px; }
-.s-cond-maybe { border-inline-start: 3px solid var(--color-secondary-subtle); padding-inline-start: 10px; }
-.s-cond-note { font-size: 0.7em; color: var(--color-on-surface-variant); margin-bottom: 4px; }
-
-/* מתקפל רגיל */
-.s-expander {
-  border: 1px solid var(--color-outline-variant); border-radius: var(--radius-md);
-  padding: 6px 12px; margin: 10px 0; background: var(--color-surface-container);
+.panel.open { opacity: 1; transform: none; pointer-events: auto; }
+.panel-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 20px 12px; font-weight: 700; font-size: 1.1rem;
+  flex: 0 0 auto;
 }
-.s-expander > summary { cursor: pointer; font-weight: 700; color: var(--color-secondary); font-size: 0.85em; }
-.s-expander-body { margin-top: 8px; }
+.panel-body { overflow-y: auto; padding: 4px 20px 20px; }
 
-/* טבלה דו-טורית */
-.s-wide { width: 100%; border-collapse: collapse; margin: 8px 0; }
-.s-wide td { padding: 2px 12px; }
+/* Zmanim */
+.zman { display: flex; justify-content: space-between; padding: 7px 4px; border-bottom: 1px solid var(--c-outline-variant); }
+.z-name { color: var(--c-on-surface-variant); }
+.z-val { font-weight: 700; font-variant-numeric: tabular-nums; }
 
-.muted { color: var(--color-on-surface-variant); }
-.center { text-align: center; padding: 40px 0; }
-
-.fade-in { animation: fadeIn .25s ease-out; }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
-
-/* ---------- נייד ---------- */
-@media (max-width: 720px) {
-  .sidebar {
-    position: fixed; inset-inline-end: 0; top: 0; bottom: 0; z-index: 50;
-    transform: translateX(100%); transition: transform .25s;
-    box-shadow: -4px 0 16px rgba(0,0,0,0.2);
-  }
-  .sidebar.open { transform: none; }
-  .icon-btn { display: block; }
-  .float-panel { inset-inline-start: 12px; inset-inline-end: 12px; width: auto; }
+/* Nav list */
+.nav-item {
+  display: block; width: 100%; text-align: start; border: none; background: transparent;
+  color: var(--c-on-surface); padding: 9px 8px; font-size: .95rem; cursor: pointer;
+  border-radius: var(--radius-sm); font-family: inherit;
 }
+.nav-item:hover { background: var(--c-primary-subtle); }
+
+/* Settings */
+.set-row { margin-bottom: 16px; }
+.set-label { font-size: .85rem; font-weight: 600; color: var(--c-on-surface-variant); margin-bottom: 6px; }
+.toggle-row { display: flex; align-items: center; justify-content: space-between; }
+.toggle-row .set-label { margin-bottom: 0; }
+.pill-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.pill {
+  border: 1px solid var(--c-outline-variant); background: transparent;
+  color: var(--c-on-surface); padding: 7px 14px; border-radius: 999px;
+  font-size: .9rem; cursor: pointer; font-family: inherit; transition: .15s;
+}
+.pill:hover { background: var(--c-primary-subtle); }
+.pill.active { background: var(--c-primary); color: var(--c-on-primary); border-color: var(--c-primary); }
+.switch {
+  width: 46px; height: 26px; border-radius: 999px; border: 2px solid var(--c-outline);
+  background: transparent; position: relative; cursor: pointer; transition: .2s; flex: 0 0 auto;
+}
+.switch::after {
+  content: ''; position: absolute; top: 3px; inset-inline-end: 3px;
+  width: 16px; height: 16px; border-radius: 50%; background: var(--c-outline); transition: .2s;
+}
+.switch.on { background: var(--c-primary); border-color: var(--c-primary); }
+.switch.on::after { inset-inline-end: 23px; background: var(--c-on-primary); }
+.set-note { font-size: .78rem; color: var(--c-on-surface-variant); line-height: 1.5; margin-top: 18px; }
+
+/* ── Font bar ── */
+.fontbar {
+  position: absolute; bottom: 14px; inset-inline-start: 14px; z-index: 20;
+  display: flex; align-items: center; gap: 4px;
+  background: var(--c-surface-container-highest); border-radius: 999px;
+  padding: 4px 6px; box-shadow: 0 2px 8px rgba(0,0,0,.18);
+}
+.fs-btn {
+  border: none; background: transparent; color: var(--c-on-surface);
+  width: 34px; height: 30px; border-radius: 999px; cursor: pointer; font-size: .9rem; font-weight: 700;
+}
+.fs-btn:hover { background: var(--c-primary-subtle); }
+.fs-val { min-width: 26px; text-align: center; font-size: .85rem; font-variant-numeric: tabular-nums; }
+
+/* ── Utilities ── */
+.muted { color: var(--c-on-surface-variant); }
+.center { text-align: center; padding: 40px 16px; }
