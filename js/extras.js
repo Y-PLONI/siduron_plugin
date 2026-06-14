@@ -28,6 +28,8 @@
       case 'migdol': return has('rosh_chodesh') || has('musaf_day');
       case 'ayt': return has('aseret_yemei_teshuva');
       case 'noayt': case 'noAyt': return !has('aseret_yemei_teshuva');
+      case 'gedalya': return has('fast_gedalia');
+      case 'noGedalya': return !has('fast_gedalia');
       case 'israel': return has('in_israel');
       case 'sun': return has('day_sunday');
       case 'mon': return has('day_monday');

@@ -19,6 +19,7 @@
 
   --font-size-base: 22px;
   --line-height: 1.85;
+  --content-width: 760px;
   --ui-font: 'Heebo', 'Segoe UI', 'Noto Sans Hebrew', system-ui, sans-serif;
   --prayer-font: 'FrankRuhlCLM', 'Frank Ruhl Libre', 'David', 'Noto Serif Hebrew', serif;
   --radius: 16px;
@@ -56,6 +57,14 @@ body { overflow: hidden; }
 .header-date { display: flex; align-items: center; gap: 10px; margin: 0 0 2px; }
 .hdr-date { font-size: 1.05rem; font-weight: 600; }
 .hdr-season { font-size: .82rem; color: var(--c-on-surface-variant); }
+/* Compact prayer title — only shown once the reader is scrolled. */
+.hdr-svc { font-size: 1rem; font-weight: 700; color: var(--c-primary); display: none; }
+.scrolled .hdr-svc { display: inline; }
+.scrolled .hdr-date, .scrolled .hdr-season { display: none; }
+
+/* Collapse the badges + tabs on scroll to give the text more height. */
+.hdr-badges, .tabs { transition: max-height .2s ease, opacity .15s ease, margin .2s ease; overflow: hidden; max-height: 60px; }
+.scrolled .hdr-badges, .scrolled .tabs { max-height: 0; opacity: 0; margin-top: 0; margin-bottom: 0; pointer-events: none; }
 
 .hdr-badges { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
 .badge {
@@ -94,7 +103,7 @@ body { overflow: hidden; }
   text-align: center; font-size: 1.4rem; font-weight: 700; margin: 14px 0 4px;
   color: var(--c-primary); font-family: var(--prayer-font);
 }
-.content { max-width: 760px; margin: 0 auto; padding: 0 18px; }
+.content { max-width: var(--content-width); margin: 0 auto; padding: 0 18px; }
 
 .prayer {
   font-family: var(--prayer-font);
@@ -211,7 +220,7 @@ body { overflow: hidden; }
 .fs-val { min-width: 26px; text-align: center; font-size: .85rem; font-variant-numeric: tabular-nums; }
 
 /* ── Extras (תוספות) ── */
-.extras-menu { max-width: 760px; margin: 0 auto; padding: 8px 18px; }
+.extras-menu { max-width: var(--content-width); margin: 0 auto; padding: 8px 18px; }
 .extras-cat {
   font-size: .85rem; font-weight: 700; color: var(--c-on-surface-variant);
   margin: 18px 4px 8px; text-transform: none;

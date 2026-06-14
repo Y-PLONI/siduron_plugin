@@ -93,6 +93,29 @@ setTimeout(function () {
     }
   }
 
+  // Font family picker + width picker + scroll-collapse.
+  win.SiduronApp.setDate('2026-06-18');
+  click('btn-settings');
+  const davidPill = doc.querySelector('#set-font [data-font="David"]');
+  check('font picker present', !!davidPill);
+  if (davidPill) {
+    davidPill.onclick.call(davidPill);
+    check('font → David applied', /David/.test(doc.documentElement.style.getPropertyValue('--prayer-font')) && win.SiduronApp.state.fontFamily === 'David');
+    const defPill = doc.querySelector('#set-font [data-font=""]');
+    defPill.onclick.call(defPill);
+    check('font → default reverts', win.SiduronApp.state.fontFamily === '');
+  }
+  const fullPill = doc.querySelector('#set-width [data-width="full"]');
+  check('width picker present', !!fullPill);
+  if (fullPill) {
+    fullPill.onclick.call(fullPill);
+    check('width → full applied', doc.documentElement.style.getPropertyValue('--content-width') === '100%');
+  }
+  const scEl = doc.getElementById('reader-scroll');
+  Object.defineProperty(scEl, 'scrollTop', { value: 120, configurable: true });
+  scEl.dispatchEvent(new win.Event('scroll'));
+  check('header collapses on scroll', doc.body.classList.contains('scrolled') && doc.getElementById('hdr-svc').textContent.length > 0);
+
   check('no runtime errors', errors.length === 0);
   console.log(`\n=== INTERACTIONS: ${fail === 0 ? 'PASS' : 'FAIL'} (${pass} passed, ${fail} failed) ===`);
   process.exit(fail === 0 ? 0 : 1);

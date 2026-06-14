@@ -20,6 +20,9 @@
     purimDate: 'fourteenth',    // fourteenth | fifteenth | both
     censorNames: false,
     fontSize: 22,
+    fontFamily: '',             // '' = follow Otzaria's font; else a specific family
+    textWidth: '760',           // content max-width in px, or 'full'
+    themeFont: '',              // Otzaria's typography.fontFamily (captured from theme)
     service: null,              // current service id
     extra: null,                // current extra id (within the תוספות view)
     date: null,                 // JS Date (the day we're rendering)
@@ -95,6 +98,8 @@
     if (theme.typography) {
       var tp = theme.typography;
       if (tp.lineHeight) r.style.setProperty('--line-height', String(tp.lineHeight));
+      // Remember Otzaria's chosen font so "default" follows the rest of the app.
+      if (tp.fontFamily) { STATE.themeFont = tp.fontFamily; applyFont(); }
     }
   }
   function hexToRgba(hex, a) {
@@ -139,6 +144,12 @@
     STATE.dayFlags = window.SiduronCalendar.flagsFor(STATE.date, userContext());
     renderHeader();
     await renderZmanim();
+  }
+
+  // Set both the in-content title and the compact header title (shown on scroll).
+  function setTitle(t) {
+    var a = document.getElementById('hdr-title'); if (a) a.textContent = t || '';
+    var b = document.getElementById('hdr-svc'); if (b) b.textContent = t || '';
   }
 
   function userContext() {
@@ -256,8 +267,7 @@
       return;
     }
     STATE.nav = result.nav;
-    var titleEl = document.getElementById('hdr-title');
-    if (titleEl) titleEl.textContent = svc.he;
+    setTitle(svc.he);
     contentEl.innerHTML = '<div class="prayer fade-in">' + applyCensor(result.html) + '</div>';
     contentEl.scrollTop = 0;
     var sc = document.getElementById('reader-scroll'); if (sc) sc.scrollTop = 0;
@@ -267,7 +277,6 @@
   /* ────────────── Extras (תוספות) view ────────────── */
   function renderExtrasView() {
     var contentEl = document.getElementById('content');
-    var titleEl = document.getElementById('hdr-title');
     var sc = document.getElementById('reader-scroll'); if (sc) sc.scrollTop = 0;
     contentEl.scrollTop = 0;
 
@@ -275,7 +284,7 @@
 
     if (!STATE.extra) {
       // Menu of extras.
-      if (titleEl) titleEl.textContent = 'תוספות וברכות';
+      setTitle('תוספות וברכות');
       STATE.nav = [];
       contentEl.innerHTML = '<div class="extras-menu fade-in">' + window.SiduronExtras.renderMenu() + '</div>';
       var cards = contentEl.querySelectorAll('[data-extra]');
@@ -287,7 +296,7 @@
     // A specific extra.
     var item = null, list = window.SiduronExtras.list();
     for (var k = 0; k < list.length; k++) if (list[k].id === STATE.extra) item = list[k];
-    if (titleEl) titleEl.textContent = item ? item.title : 'תוספת';
+    setTitle(item ? item.title : 'תוספת');
     var result = window.SiduronExtras.renderExtra(STATE.extra, STATE.nusach, STATE.dayFlags);
     STATE.nav = result.nav || [];
     contentEl.innerHTML =
@@ -374,6 +383,28 @@
     pd.querySelectorAll('[data-purim]').forEach(function (b) {
       b.onclick = function () { STATE.purimDate = this.getAttribute('data-purim'); storageSet('purimDate', STATE.purimDate); buildSettings(); rerender(); };
     });
+    // Font family (first = default: follow Otzaria).
+    var ft = document.getElementById('set-font');
+    if (ft) {
+      var fonts = [['', 'ברירת מחדל'], ['FrankRuhlCLM', 'פרנק רוהל'], ['David', 'דוד'], ['TaameyFrankCLM', 'טעמי פרנק'], ['Shofar', 'שופר']];
+      ft.innerHTML = fonts.map(function (f) {
+        return '<button class="pill' + (STATE.fontFamily === f[0] ? ' active' : '') + '" data-font="' + f[0] + '">' + f[1] + '</button>';
+      }).join('');
+      ft.querySelectorAll('[data-font]').forEach(function (b) {
+        b.onclick = function () { STATE.fontFamily = this.getAttribute('data-font'); storageSet('fontFamily', STATE.fontFamily); applyFont(); buildSettings(); };
+      });
+    }
+    // Text width.
+    var wd = document.getElementById('set-width');
+    if (wd) {
+      var widths = [['600', 'צר'], ['760', 'בינוני'], ['920', 'רחב'], ['full', 'מלא']];
+      wd.innerHTML = widths.map(function (w) {
+        return '<button class="pill' + (STATE.textWidth === w[0] ? ' active' : '') + '" data-width="' + w[0] + '">' + w[1] + '</button>';
+      }).join('');
+      wd.querySelectorAll('[data-width]').forEach(function (b) {
+        b.onclick = function () { STATE.textWidth = this.getAttribute('data-width'); storageSet('textWidth', STATE.textWidth); applyWidth(); buildSettings(); };
+      });
+    }
     var fv = document.getElementById('fs-val'); if (fv) fv.textContent = String(STATE.fontSize);
   }
   function setToggle(id, on, onChange) {
@@ -392,6 +423,20 @@
   }
   function changeFont(d) { applyFontSize(STATE.fontSize + d); storageSet('fontSize', STATE.fontSize); }
 
+  /* ────────────── Font family ────────────── */
+  // Built-in serif fallbacks appended so the prayer text always renders nicely.
+  var FONT_FALLBACK = "'David', 'Noto Serif Hebrew', serif";
+  function applyFont() {
+    var fam = STATE.fontFamily || STATE.themeFont || 'FrankRuhlCLM';
+    document.documentElement.style.setProperty('--prayer-font', "'" + fam + "', " + FONT_FALLBACK);
+  }
+
+  /* ────────────── Text width ────────────── */
+  function applyWidth() {
+    var w = STATE.textWidth === 'full' ? '100%' : (parseInt(STATE.textWidth, 10) || 760) + 'px';
+    document.documentElement.style.setProperty('--content-width', w);
+  }
+
   /* ────────────── Panels ────────────── */
   function closeAllPanels() {
     var open = document.querySelectorAll('.panel.open');
@@ -407,7 +452,7 @@
 
   /* ────────────── Load / save settings ────────────── */
   async function loadSettings() {
-    var keys = ['nusach', 'gender', 'isInIsrael', 'withMinyan', 'purimDate', 'censorNames', 'fontSize', 'service'];
+    var keys = ['nusach', 'gender', 'isInIsrael', 'withMinyan', 'purimDate', 'censorNames', 'fontSize', 'fontFamily', 'textWidth', 'service'];
     for (var i = 0; i < keys.length; i++) {
       var k = keys[i]; var v = await storageGet(k);
       if (v == null) continue;
@@ -427,6 +472,17 @@
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeAllPanels(); });
     document.getElementById('fs-dec').onclick = function () { changeFont(-1); };
     document.getElementById('fs-inc').onclick = function () { changeFont(1); };
+
+    // Collapse the header (tabs + badges) on scroll, surfacing the compact
+    // prayer title — gives the text more vertical room while reading.
+    var sc = document.getElementById('reader-scroll');
+    if (sc) {
+      var collapsed = false;
+      sc.addEventListener('scroll', function () {
+        var should = sc.scrollTop > 36;
+        if (should !== collapsed) { collapsed = should; document.body.classList.toggle('scrolled', should); }
+      });
+    }
   }
 
   // Standalone (no Otzaria): inject a date simulator bar for QA/preview.
@@ -448,6 +504,8 @@
     try {
       await loadSettings();
       applyFontSize(STATE.fontSize);
+      applyFont();
+      applyWidth();
       await refreshDate();
       if (!hasOtzaria()) injectDevBar();
       // Auto-pick the service by time of day, unless one was saved.
