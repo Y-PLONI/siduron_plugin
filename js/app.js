@@ -38,7 +38,8 @@
     document.body.classList.toggle('dark-mode', theme.mode === 'dark');
     if (theme.typography) {
       var tp = theme.typography;
-      if (tp.fontFamily) r.style.setProperty('--font-main', "'" + tp.fontFamily + "', 'David', serif");
+      // גופן התוסף קבוע (Segoe UI מתוך fonts/) — לא נדרס מ-theme.
+      // מכבדים רק גודל וריווח שורה מהגדרות אוצריא.
       if (tp.fontSize) r.style.setProperty('--font-size-base', tp.fontSize + 'px');
       if (tp.lineHeight) r.style.setProperty('--line-height', String(tp.lineHeight));
     }
@@ -60,9 +61,16 @@
 
   /* ---------- טעינת נתוני הסידור ---------- */
   async function loadData() {
-    var t = await fetch('data/texts.json').then(function (r) { return r.json(); });
-    var ti = await fetch('data/titles.json').then(function (r) { return r.json(); });
-    TEXTS = t; TITLES = ti;
+    // בטעינה מ-file:// (כפי שאוצריא טוען את התוסף) הפקודה fetch חסומה,
+    // לכן הנתונים נטענים דרך תגי <script> (data/texts.js, data/titles.js).
+    // ה-fetch נשאר כגיבוי עבור הרצה משרת http בפיתוח.
+    if (window.SIDURON_TEXTS && window.SIDURON_TITLES) {
+      TEXTS = window.SIDURON_TEXTS;
+      TITLES = window.SIDURON_TITLES;
+    } else {
+      TEXTS = await fetch('data/texts.json').then(function (r) { return r.json(); });
+      TITLES = await fetch('data/titles.json').then(function (r) { return r.json(); });
+    }
     Object.keys(TEXTS).forEach(function (k) { HASNAME[k] = true; });
   }
 
@@ -81,8 +89,9 @@
     var ht = document.getElementById('hdr-times');
     var hh = document.getElementById('hdr-holidays');
     if (jd) {
-      var heDate = (jd.day || '') + ' ' + (jd.monthName || '') + ' ' + toHebYear(jd.year);
-      hd.textContent = heDate;
+      var heDate = gershize(hebNum(jd.day)) + ' ' + (jd.monthName || '') +
+        ' ' + toHebYear(jd.year);
+      hd.textContent = heDate.trim();
     } else { hd.textContent = ''; }
 
     if (jd && jd.holidays && jd.holidays.length) {
@@ -93,38 +102,64 @@
     } else { hh.style.display = 'none'; hh.innerHTML = ''; }
 
     if (times && typeof times === 'object') {
+      // אוצריא מחזיר את כל מערך הזמנים של ספריית KosherJava (עשרות מפתחות
+      // טכניים באנגלית). מציגים רק רשימה נבחרת עם תוויות עבריות, לפי סדר היום.
+      // לכל זמן רשומים כמה שמות-מפתח אפשריים; נבחר הראשון הקיים.
       var order = [
-        ['alotHashachar', 'עלות השחר'], ['misheyakir', 'משיכיר'],
-        ['sunrise', 'הנץ החמה'], ['netz', 'הנץ החמה'],
-        ['sofZmanShemaMGA', 'סו"ז ק"ש (מג"א)'], ['sofZmanShema', 'סוף זמן ק"ש'],
-        ['sofZmanTfila', 'סוף זמן תפילה'], ['chatzot', 'חצות'],
-        ['minchaGedola', 'מנחה גדולה'], ['minchaKetana', 'מנחה קטנה'],
-        ['plagHamincha', 'פלג המנחה'], ['sunset', 'שקיעה'], ['shkia', 'שקיעה'],
-        ['tzet', 'צאת הכוכבים'], ['tzetHakochavim', 'צאת הכוכבים']
+        ['עלות השחר', ['alos72Zmanis', 'alos72Degrees', 'alotHashachar', 'alos90Degrees']],
+        ['משיכיר', ['misheyakir11', 'misheyakir10point2', 'misheyakir11point5', 'misheyakir']],
+        ['הנץ החמה', ['sunrise', 'netz', 'seaLevelSunrise']],
+        ['סו"ז ק"ש מג"א', ['sofZmanShmaMGA72Degrees', 'sofZmanShmaMGA72Zmanis', 'sofZmanShemaMGA']],
+        ['סו"ז ק"ש גר"א', ['sofZmanShmaGRA', 'sofZmanShema']],
+        ['סו"ז תפילה מג"א', ['sofZmanTfilaMGA72Degrees', 'sofZmanTfilaMGA72Zmanis']],
+        ['סו"ז תפילה גר"א', ['sofZmanTfilaGRA', 'sofZmanTfila']],
+        ['חצות', ['chatzos', 'chatzot']],
+        ['מנחה גדולה', ['minchaGedolaGRA', 'minchaGedola30', 'minchaGedola16point1', 'minchaGedola']],
+        ['מנחה קטנה', ['minchaKetanaGRA', 'minchaKetana16point1', 'minchaKetana']],
+        ['פלג המנחה', ['plagGRA', 'plagHamincha']],
+        ['שקיעה', ['sunset', 'shkia', 'seaLevelSunset']],
+        ['צאת הכוכבים', ['tzeitGeonim8point5', 'tzeitGeonim7point083', 'tzet', 'tzetHakochavim']],
+        ['ר"ת', ['rt72Zmanis', 'rt72Shavos']]
       ];
-      var seen = {}, html = '';
+      var html = '';
       order.forEach(function (p) {
-        var key = p[0];
-        if (times[key] != null && !seen[p[1]]) {
-          seen[p[1]] = 1;
-          html += '<div class="zman"><span class="z-name">' + esc(p[1]) +
-            '</span><span class="z-val">' + esc(String(times[key])) + '</span></div>';
+        var label = p[0], keys = p[1], val = null;
+        for (var i = 0; i < keys.length; i++) {
+          if (times[keys[i]] != null) { val = times[keys[i]]; break; }
         }
+        if (val == null) return;
+        html += '<div class="zman"><span class="z-name">' + esc(label) +
+          '</span><span class="z-val">' + esc(String(val)) + '</span></div>';
       });
-      // הוספת מפתחות שלא במיפוי
-      Object.keys(times).forEach(function (k) {
-        if (!order.some(function (p) { return p[0] === k; })) {
-          html += '<div class="zman"><span class="z-name">' + esc(k) +
-            '</span><span class="z-val">' + esc(String(times[k])) + '</span></div>';
-        }
-      });
-      ht.innerHTML = html;
+      ht.innerHTML = html || '<div class="muted">זמני היום אינם זמינים</div>';
     } else { ht.innerHTML = '<div class="muted">זמני היום אינם זמינים</div>'; }
   }
 
+  // מספר עברי (גימטריה) ל-1..999, ללא גרשיים.
+  function hebNum(n) {
+    n = parseInt(n, 10);
+    if (!n || n < 1) return '';
+    var ones = ['', 'א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט'];
+    var tens = ['', 'י', 'כ', 'ל', 'מ', 'נ', 'ס', 'ע', 'פ', 'צ'];
+    var huns = ['', 'ק', 'ר', 'ש', 'ת', 'תק', 'תר', 'תש', 'תת', 'תתק'];
+    n = n % 1000;
+    var s = huns[Math.floor(n / 100)];
+    n = n % 100;
+    if (n === 15) s += 'טו';
+    else if (n === 16) s += 'טז';
+    else { s += tens[Math.floor(n / 10)] + ones[n % 10]; }
+    return s;
+  }
+  // הוספת גרש/גרשיים למספר עברי.
+  function gershize(s) {
+    if (!s) return '';
+    if (s.length === 1) return s + '׳';
+    return s.slice(0, -1) + '״' + s.slice(-1);
+  }
   function toHebYear(y) {
+    y = parseInt(y, 10);
     if (!y) return '';
-    return 'ה\'' + (y % 1000); // תצוגה פשוטה; אוצריא כבר נותן את התאריך העברי
+    return 'ה׳' + gershize(hebNum(y % 1000)); // לדוגמה: ה'תשפ"ו
   }
 
   /* ---------- ניווט תפילות ---------- */
@@ -216,11 +251,44 @@
     refreshDate().then(function () { if (STATE.current) openService(STATE.current); });
   });
 
-  // כפתור פתיחת/סגירת התפריט בנייד
+  /* ---------- חלוניות צד צפות (זמנים / הגדרות) ---------- */
+  function setupPanels() {
+    var backdrop = document.getElementById('panel-backdrop');
+    var map = { 'times-btn': 'times-panel', 'settings-btn': 'settings-panel' };
+
+    function closeAll() {
+      var open = document.querySelectorAll('.float-panel.open');
+      for (var i = 0; i < open.length; i++) open[i].classList.remove('open');
+      if (backdrop) backdrop.classList.remove('open');
+    }
+    function toggle(panelId) {
+      var panel = document.getElementById(panelId);
+      var wasOpen = panel && panel.classList.contains('open');
+      closeAll();
+      if (panel && !wasOpen) {
+        panel.classList.add('open');
+        if (backdrop) backdrop.classList.add('open');
+      }
+    }
+
+    Object.keys(map).forEach(function (btnId) {
+      var b = document.getElementById(btnId);
+      if (b) b.onclick = function () { toggle(map[btnId]); };
+    });
+    if (backdrop) backdrop.onclick = closeAll;
+    var closers = document.querySelectorAll('[data-close]');
+    for (var i = 0; i < closers.length; i++) closers[i].onclick = closeAll;
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') closeAll();
+    });
+  }
+
+  // כפתורי הכותרת
   document.addEventListener('DOMContentLoaded', function () {
     var toggle = document.getElementById('menu-toggle');
     if (toggle) toggle.onclick = function () {
       document.getElementById('sidebar').classList.toggle('open');
     };
+    setupPanels();
   });
 })();

@@ -13,7 +13,6 @@
       <div class="brand">
         <span class="brand-title">סידורון</span>
       </div>
-      <div class="nusach-bar" id="nusach-bar"></div>
       <nav class="menu" id="menu"></nav>
       <div class="sidebar-foot muted">
         תוספות התפילה מזוהות אוטומטית לפי תאריך וזמני אוצריא
@@ -28,7 +27,16 @@
           <div class="hdr-date" id="hdr-date"></div>
           <div class="hdr-holidays" id="hdr-holidays"></div>
         </div>
-        <div class="hdr-times" id="hdr-times"></div>
+        <div class="header-tools">
+          <!-- אייקונים: clock_24_regular ו-settings_24_regular מסט FluentUI של אוצריא,
+               מוטמעים כ-SVG inline (fill=currentColor כדי לרשת את צבע ה-theme). -->
+          <button class="tool-btn" id="times-btn" aria-label="זמני היום" title="זמני היום">
+            <svg class="fi-svg" viewBox="0 0 500 500" fill="currentColor" aria-hidden="true"><path transform="matrix(1 0 0 -1 0 500)" d="M73 250Q73 298 97.0 338.5Q121 379 161.5 403.0Q202 427 250.0 427.0Q298 427 338.5 403.0Q379 379 403.0 338.5Q427 298 427.0 250.0Q427 202 403.0 161.5Q379 121 338.5 97.0Q298 73 250.0 73.0Q202 73 161.5 97.0Q121 121 97.0 161.5Q73 202 73 250ZM250 458Q193 458 145.5 430.0Q98 402 70.0 354.5Q42 307 42.0 250.0Q42 193 70.0 145.5Q98 98 145.5 70.0Q193 42 250.0 42.0Q307 42 354.5 70.0Q402 98 430.0 145.5Q458 193 458.0 250.0Q458 307 430.0 354.5Q402 402 354.5 430.0Q307 458 250 458ZM250 362Q249 368 244.0 371.5Q239 375 233.0 375.0Q227 375 223.0 370.5Q219 366 219 359V232Q220 226 224.5 222.5Q229 219 234 219H320Q326 220 330.0 224.5Q334 229 333.5 235.5Q333 242 328.5 246.0Q324 250 318 250H250Z"/></svg>
+          </button>
+          <button class="tool-btn" id="settings-btn" aria-label="הגדרות" title="הגדרות">
+            <svg class="fi-svg" viewBox="0 0 500 500" fill="currentColor" aria-hidden="true"><path transform="matrix(1 0 0 -1 0 500)" d="M250 453Q273 453 296 448Q301 447 304.0 443.0Q307 439 308 434L311 403Q313 388 325.5 380.5Q338 373 352 379L381 392Q385 394 390.0 393.0Q395 392 398 388Q430 354 444 309Q446 305 444.5 300.0Q443 295 439 292L413 273Q401 265 401.0 250.0Q401 235 413 227L439 208Q443 205 444.5 200.0Q446 195 444 191Q430 146 398 112Q395 108 390.0 107.0Q385 106 381 108L351 121Q338 127 325.5 119.5Q313 112 311 98L308 66Q307 61 304.0 57.0Q301 53 296 52Q250 41 204 52Q199 53 196.0 57.0Q193 61 192 66L189 98Q187 112 174.5 119.0Q162 126 149 121L119 108Q115 106 110.0 107.0Q105 108 102 111Q70 146 56 191Q54 195 55.5 200.0Q57 205 61 208L87 227Q99 235 99.0 250.0Q99 265 87 273L61 292Q57 295 55.5 300.0Q54 305 56 309Q70 354 102 388Q105 392 110.0 393.0Q115 394 119 392L149 379Q162 373 174.5 380.5Q187 388 189 403L192 434Q193 439 196.0 443.0Q199 447 204 448Q227 453 250 453ZM250 422Q236 422 222 419L220 399Q218 385 210.0 373.0Q202 361 190.0 354.0Q178 347 163.5 346.0Q149 345 136 351L117 359Q99 337 89 311L106 298Q117 290 123.5 277.0Q130 264 130.0 250.0Q130 236 123.5 223.0Q117 210 106 202L89 189Q99 163 117 141L136 149Q149 155 163.5 154.0Q178 153 190.0 146.0Q202 139 210.0 127.0Q218 115 220 101L222 80Q250 76 278 80L280 101Q282 115 290.0 127.0Q298 139 310.0 146.0Q322 153 336.5 154.0Q351 155 364 149L383 141Q401 163 411 189L394 202Q383 210 376.5 223.0Q370 236 370.0 250.0Q370 264 376.5 277.0Q383 290 394 298L411 311Q401 337 383 359L364 351Q351 345 336.5 346.0Q322 347 310.0 354.0Q298 361 290.0 373.0Q282 385 280 399L278 419Q264 422 250 422ZM250 328Q282 328 305.0 305.0Q328 282 328.0 250.0Q328 218 305.0 195.0Q282 172 250.0 172.0Q218 172 195.0 195.0Q172 218 172.0 250.0Q172 282 195.0 305.0Q218 328 250 328ZM250 297Q231 297 217.0 283.0Q203 269 203.0 250.0Q203 231 217.0 217.0Q231 203 250.0 203.0Q269 203 283.0 217.0Q297 231 297.0 250.0Q297 269 283.0 283.0Q269 297 250 297Z"/></svg>
+          </button>
+        </div>
       </header>
 
       <div class="reader-scroll" id="reader-scroll">
@@ -39,6 +47,30 @@
     </main>
   </div>
 
+  <!-- חלוניות צד צפות -->
+  <div class="panel-backdrop" id="panel-backdrop"></div>
+
+  <aside class="float-panel" id="times-panel" aria-label="זמני היום">
+    <div class="float-panel-head">
+      <span>זמני היום</span>
+      <button class="tool-btn" data-close aria-label="סגירה">✕</button>
+    </div>
+    <div class="float-panel-body" id="hdr-times"></div>
+  </aside>
+
+  <aside class="float-panel" id="settings-panel" aria-label="הגדרות">
+    <div class="float-panel-head">
+      <span>הגדרות</span>
+      <button class="tool-btn" data-close aria-label="סגירה">✕</button>
+    </div>
+    <div class="float-panel-body">
+      <div class="settings-label">נוסח התפילה</div>
+      <div class="nusach-bar" id="nusach-bar"></div>
+    </div>
+  </aside>
+
+  <script src="data/texts.js"></script>
+  <script src="data/titles.js"></script>
   <script src="js/parser.js"></script>
   <script src="js/conditions.js"></script>
   <script src="js/catalog.js"></script>

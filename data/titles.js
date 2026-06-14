@@ -1,4 +1,4 @@
-{
+window.SIDURON_TITLES = {
   "AlHanisim": "על הניסים",
   "AlHanisimAsh": "על הנסים",
   "AlHanisimSf": "על הנסים",
@@ -607,4 +607,4 @@
   "‏‏‏‏‏‏‏‏MoridTalWinterAsh": "‏‏‏‏‏‏‏‏MoridTalWinterAsh",
   "‏‏‏‏‏‏‏‏MoridTalWinterTm": "‏‏‏‏‏‏‏‏MoridTalWinterTm",
   "‏‏‏‏‏‏‏‏ToraTahanunAsh1": "‏‏‏‏‏‏‏‏ToraTahanunAsh1"
-}
+};
