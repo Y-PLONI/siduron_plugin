@@ -24,9 +24,10 @@
       <header class="header">
         <button class="icon-btn" id="menu-toggle" aria-label="תפריט">☰</button>
         <div class="header-info">
-          <div class="hdr-date" id="hdr-date"></div>
-          <div class="hdr-holidays" id="hdr-holidays"></div>
+          <span class="hdr-date" id="hdr-date"></span>
+          <span class="hdr-holidays" id="hdr-holidays"></span>
         </div>
+        <div class="hdr-title" id="hdr-title"></div>
         <div class="header-tools">
           <!-- אייקונים: clock_24_regular ו-settings_24_regular מסט FluentUI של אוצריא,
                מוטמעים כ-SVG inline (fill=currentColor כדי לרשת את צבע ה-theme). -->
@@ -64,8 +65,18 @@
       <button class="tool-btn" data-close aria-label="סגירה">✕</button>
     </div>
     <div class="float-panel-body">
-      <div class="settings-label">נוסח התפילה</div>
-      <div class="nusach-bar" id="nusach-bar"></div>
+      <div class="settings-section">
+        <div class="settings-label">נוסח התפילה</div>
+        <div class="nusach-bar" id="nusach-bar"></div>
+      </div>
+      <div class="settings-section">
+        <div class="settings-label">גודל הגופן</div>
+        <div class="font-size-ctl">
+          <button class="fs-btn" id="fs-dec" aria-label="הקטנה">−</button>
+          <span class="fs-val" id="fs-val">20</span>
+          <button class="fs-btn" id="fs-inc" aria-label="הגדלה">+</button>
+        </div>
+      </div>
     </div>
   </aside>
 

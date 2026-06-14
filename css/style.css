@@ -86,11 +86,11 @@ body {
 /* ---------- אזור ראשי ---------- */
 .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 .header {
-  display: flex; align-items: center; gap: 14px;
-  padding: 10px 18px;
+  position: relative;
+  display: flex; align-items: center; gap: 10px;
+  padding: 5px 14px; min-height: 40px;
   background: var(--color-surface-container-high);
   border-bottom: 1px solid var(--color-outline-variant);
-  flex-wrap: wrap;
 }
 .icon-btn {
   display: none; background: transparent; border: none; color: var(--color-on-surface);
@@ -106,12 +106,20 @@ body {
 .fi-svg { width: 1.25em; height: 1.25em; display: block; }
 /* קבוצת לחצני הכלים — נדחפת לקצה ההתחלתי-הפוך (שמאל ב-RTL) */
 .header-tools { margin-inline-start: auto; display: flex; align-items: center; gap: 2px; }
-.header-info { display: flex; flex-direction: column; gap: 4px; }
-.hdr-date { font-size: 0.95em; font-weight: 700; color: var(--color-primary); }
-.hdr-holidays { display: flex; gap: 6px; flex-wrap: wrap; }
+.header-info { display: flex; flex-direction: row; align-items: center; gap: 8px; min-width: 0; }
+.hdr-date { font-size: 0.78em; font-weight: 700; color: var(--color-primary); white-space: nowrap; }
+.hdr-holidays { display: flex; gap: 5px; }
 .chip {
   background: var(--color-primary-subtle); color: var(--color-primary);
-  border-radius: var(--radius-pill); padding: 2px 10px; font-size: 0.66em; font-weight: 600;
+  border-radius: var(--radius-pill); padding: 1px 8px; font-size: 0.6em; font-weight: 600;
+  white-space: nowrap;
+}
+/* שם התפילה הפעילה — ממורכז בכותרת */
+.hdr-title {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  max-width: 50%; text-align: center; pointer-events: none;
+  font-size: 0.95em; font-weight: 700; color: var(--color-on-surface);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
 /* ---------- חלוניות צד צפות ---------- */
@@ -121,7 +129,7 @@ body {
 }
 .panel-backdrop.open { display: block; }
 .float-panel {
-  position: fixed; top: 60px; inset-inline-end: 16px;
+  position: fixed; top: 48px; inset-inline-end: 16px;
   width: 300px; max-height: calc(100vh - 84px); overflow-y: auto;
   background: var(--color-surface-container-high);
   border: 1px solid var(--color-outline-variant);
@@ -138,9 +146,23 @@ body {
   border-bottom: 1px solid var(--color-outline-variant); margin-bottom: 6px;
 }
 .float-panel-body { padding: 4px 16px 6px; }
+.settings-section { margin-bottom: 16px; }
+.settings-section:last-child { margin-bottom: 4px; }
 .settings-label {
   font-size: 0.78em; font-weight: 700; color: var(--color-on-surface-variant);
   margin-bottom: 8px;
+}
+.font-size-ctl { display: flex; align-items: center; gap: 12px; }
+.fs-btn {
+  width: 34px; height: 34px; border-radius: var(--radius-sm);
+  border: 1px solid var(--color-outline); background: transparent;
+  color: var(--color-on-surface); font-size: 1.1em; font-weight: 700;
+  cursor: pointer; line-height: 1; transition: background .15s;
+}
+.fs-btn:hover { background: var(--color-secondary-subtle); }
+.fs-val {
+  min-width: 38px; text-align: center; font-size: 0.9em; font-weight: 700;
+  color: var(--color-primary);
 }
 
 #hdr-times { display: flex; flex-direction: column; }

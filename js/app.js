@@ -10,7 +10,8 @@
     current: null,     // base id של התפילה הנבחרת
     ctx: null,         // הקשר תאריך
     classify: null,
-    isoDate: null
+    isoDate: null,
+    fontSize: 20
   };
 
   /* ---------- Theme ---------- */
@@ -39,8 +40,8 @@
     if (theme.typography) {
       var tp = theme.typography;
       // גופן התוסף קבוע (Segoe UI מתוך fonts/) — לא נדרס מ-theme.
-      // מכבדים רק גודל וריווח שורה מהגדרות אוצריא.
-      if (tp.fontSize) r.style.setProperty('--font-size-base', tp.fontSize + 'px');
+      // מכבדים רק גודל וריווח שורה מהגדרות אוצריא (וגודל הגופן ניתן לכוונון בהגדרות).
+      if (tp.fontSize) { STATE.fontSize = tp.fontSize; r.style.setProperty('--font-size-base', tp.fontSize + 'px'); }
       if (tp.lineHeight) r.style.setProperty('--line-height', String(tp.lineHeight));
     }
   }
@@ -210,6 +211,8 @@
     };
     var html = SiduronParser.parse(TEXTS[name], ctx, HASNAME, 0);
     var title = (SiduronCatalog.SERVICES.filter(function (s) { return s.base === base; })[0] || {}).he || TITLES[name] || name;
+    var ht = document.getElementById('hdr-title');
+    if (ht) ht.textContent = title;
     contentEl.innerHTML = '<h2 class="service-title">' + esc(title) + '</h2>' +
       '<div class="prayer fade-in">' + html + '</div>';
     contentEl.scrollTop = 0;
@@ -217,6 +220,28 @@
   }
 
   function esc(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+  /* ---------- גודל גופן ---------- */
+  var FS_MIN = 14, FS_MAX = 34, FS_DEFAULT = 20;
+  function applyFontSize(px) {
+    px = Math.max(FS_MIN, Math.min(FS_MAX, parseInt(px, 10) || FS_DEFAULT));
+    STATE.fontSize = px;
+    document.documentElement.style.setProperty('--font-size-base', px + 'px');
+    var v = document.getElementById('fs-val');
+    if (v) v.textContent = String(px);
+    return px;
+  }
+  function changeFontSize(delta) {
+    applyFontSize((STATE.fontSize || FS_DEFAULT) + delta);
+    saveFontSize();
+  }
+  async function saveFontSize() {
+    await Otzaria.call('storage.set', { key: 'fontSize', value: STATE.fontSize });
+  }
+  async function loadFontSize() {
+    var v = await call('storage.get', { key: 'fontSize' });
+    if (v) applyFontSize(v); else applyFontSize(STATE.fontSize || FS_DEFAULT);
+  }
 
   /* ---------- שמירת מצב ---------- */
   async function saveState() {
@@ -236,6 +261,7 @@
     try {
       await loadData();
       await loadState();
+      await loadFontSize();
       await refreshDate();
       renderNusachBar();
       renderMenu();
@@ -290,5 +316,9 @@
       document.getElementById('sidebar').classList.toggle('open');
     };
     setupPanels();
+    var dec = document.getElementById('fs-dec'), inc = document.getElementById('fs-inc');
+    if (dec) dec.onclick = function () { changeFontSize(-1); };
+    if (inc) inc.onclick = function () { changeFontSize(1); };
+    applyFontSize(STATE.fontSize || FS_DEFAULT); // ערך התחלתי לתצוגה עד טעינת הנשמר
   });
 })();
