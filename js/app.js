@@ -93,7 +93,14 @@
     set('--c-surface-container-highest', cs.surfaceContainerHighest);
     set('--c-outline', cs.outline); set('--c-outline-variant', cs.outlineVariant);
     set('--c-error', cs.error);
-    if (cs.primary) set('--c-primary-subtle', hexToRgba(cs.primary, 0.12));
+    if (cs.primary) {
+      set('--c-primary-subtle', hexToRgba(cs.primary, 0.12));
+      set('--c-primary-border', hexToRgba(cs.primary, 0.22));
+    }
+    if (cs.onSurface) {
+      set('--c-on-surface-subtle', hexToRgba(cs.onSurface, 0.07));
+      set('--c-on-surface-hover', hexToRgba(cs.onSurface, 0.12));
+    }
     document.body.classList.toggle('dark', theme.mode === 'dark');
     if (theme.typography) {
       var tp = theme.typography;
@@ -223,7 +230,7 @@
       if (val == null) continue;
       html += '<div class="zman"><span class="z-name">' + lbl + '</span><span class="z-val">' + val + '</span></div>';
     }
-    el.innerHTML = html || '<div class="muted">זמני היום אינם זמינים</div>';
+    el.innerHTML = html ? '<div class="panel-card">' + html + '</div>' : '<div class="muted">זמני היום אינם זמינים</div>';
   }
 
   /* ────────────── Service tabs + rendering ────────────── */
@@ -319,9 +326,9 @@
     var el = document.getElementById('nav-body');
     if (!el) return;
     if (!STATE.nav.length) { el.innerHTML = '<div class="muted">אין קטעים</div>'; return; }
-    el.innerHTML = STATE.nav.map(function (n) {
+    el.innerHTML = '<div class="panel-card">' + STATE.nav.map(function (n) {
       return '<button class="nav-item" data-anchor="' + n.anchor + '">' + window.SiduronRender.esc(n.label) + '</button>';
-    }).join('');
+    }).join('') + '</div>';
     var btns = el.querySelectorAll('.nav-item');
     for (var i = 0; i < btns.length; i++) {
       btns[i].onclick = function () {
@@ -354,57 +361,54 @@
   }
 
   /* ────────────── Settings panel ────────────── */
+  // Build a connected segmented control (single-select), like SegmentedSettingsTile.
+  // opts: array of [value, label]. onPick(value) is called on selection.
+  function buildSegment(elId, opts, current, onPick) {
+    var el = document.getElementById(elId);
+    if (!el) return;
+    el.innerHTML = opts.map(function (o) {
+      var sel = current === o[0];
+      return '<button type="button" class="' + (sel ? 'active' : '') +
+        '" data-val="' + o[0] + '" aria-pressed="' + sel + '">' + o[1] + '</button>';
+    }).join('');
+    el.querySelectorAll('[data-val]').forEach(function (b) {
+      b.onclick = function () { onPick(this.getAttribute('data-val')); };
+    });
+  }
+
+  // Build a dropdown (single-select), like DropdownSettingsTile — for long option lists.
+  // opts: array of [value, label]. onPick(value) is called on selection.
+  function buildSelect(elId, opts, current, onPick) {
+    var el = document.getElementById(elId);
+    if (!el) return;
+    el.innerHTML = opts.map(function (o) {
+      return '<option value="' + o[0] + '"' + (current === o[0] ? ' selected' : '') + '>' + o[1] + '</option>';
+    }).join('');
+    el.onchange = function () { onPick(this.value); };
+  }
+
   function buildSettings() {
-    // Nusach radios
-    var nu = document.getElementById('set-nusach');
-    nu.innerHTML = NUSACHIM.map(function (n) {
-      return '<button class="pill' + (STATE.nusach === n.id ? ' active' : '') + '" data-nusach="' + n.id + '">' + n.he + '</button>';
-    }).join('');
-    nu.querySelectorAll('[data-nusach]').forEach(function (b) {
-      b.onclick = function () { STATE.nusach = this.getAttribute('data-nusach'); storageSet('nusach', STATE.nusach); buildSettings(); rerender(); };
-    });
+    // Nusach
+    buildSegment('set-nusach', NUSACHIM.map(function (n) { return [n.id, n.he]; }), STATE.nusach,
+      function (v) { STATE.nusach = v; storageSet('nusach', v); buildSettings(); rerender(); });
     // Gender
-    var gn = document.getElementById('set-gender');
-    gn.innerHTML = [['male', 'זכר'], ['female', 'נקבה']].map(function (g) {
-      return '<button class="pill' + (STATE.gender === g[0] ? ' active' : '') + '" data-gender="' + g[0] + '">' + g[1] + '</button>';
-    }).join('');
-    gn.querySelectorAll('[data-gender]').forEach(function (b) {
-      b.onclick = function () { STATE.gender = this.getAttribute('data-gender'); storageSet('gender', STATE.gender); buildSettings(); rerender(); };
-    });
+    buildSegment('set-gender', [['male', 'זכר'], ['female', 'נקבה']], STATE.gender,
+      function (v) { STATE.gender = v; storageSet('gender', v); buildSettings(); rerender(); });
+    // Purim date (walled cities)
+    buildSegment('set-purim', [['fourteenth', 'י״ד'], ['fifteenth', 'ט״ו'], ['both', 'שניהם']], STATE.purimDate,
+      function (v) { STATE.purimDate = v; storageSet('purimDate', v); buildSettings(); rerender(); });
+    // Font family (first = default: follow Otzaria). Dropdown — long labels.
+    buildSelect('set-font',
+      [['', 'ברירת מחדל'], ['FrankRuhlCLM', 'פרנק רוהל'], ['David', 'דוד'], ['TaameyFrankCLM', 'טעמי פרנק'], ['Shofar', 'שופר']],
+      STATE.fontFamily,
+      function (v) { STATE.fontFamily = v; storageSet('fontFamily', v); applyFont(); });
+    // Text width.
+    buildSegment('set-width', [['600', 'צר'], ['760', 'בינוני'], ['920', 'רחב'], ['full', 'מלא']], STATE.textWidth,
+      function (v) { STATE.textWidth = v; storageSet('textWidth', v); applyWidth(); buildSettings(); });
     // Toggles
     setToggle('set-israel', STATE.isInIsrael, function (v) { STATE.isInIsrael = v; storageSet('isInIsrael', v); rerender(); });
     setToggle('set-minyan', STATE.withMinyan, function (v) { STATE.withMinyan = v; storageSet('withMinyan', v); rerender(); });
     setToggle('set-censor', STATE.censorNames, function (v) { STATE.censorNames = v; storageSet('censorNames', v); if (STATE.service) openService(STATE.service); });
-    // Purim date
-    var pd = document.getElementById('set-purim');
-    pd.innerHTML = [['fourteenth', 'י״ד'], ['fifteenth', 'ט״ו'], ['both', 'שניהם']].map(function (p) {
-      return '<button class="pill' + (STATE.purimDate === p[0] ? ' active' : '') + '" data-purim="' + p[0] + '">' + p[1] + '</button>';
-    }).join('');
-    pd.querySelectorAll('[data-purim]').forEach(function (b) {
-      b.onclick = function () { STATE.purimDate = this.getAttribute('data-purim'); storageSet('purimDate', STATE.purimDate); buildSettings(); rerender(); };
-    });
-    // Font family (first = default: follow Otzaria).
-    var ft = document.getElementById('set-font');
-    if (ft) {
-      var fonts = [['', 'ברירת מחדל'], ['FrankRuhlCLM', 'פרנק רוהל'], ['David', 'דוד'], ['TaameyFrankCLM', 'טעמי פרנק'], ['Shofar', 'שופר']];
-      ft.innerHTML = fonts.map(function (f) {
-        return '<button class="pill' + (STATE.fontFamily === f[0] ? ' active' : '') + '" data-font="' + f[0] + '">' + f[1] + '</button>';
-      }).join('');
-      ft.querySelectorAll('[data-font]').forEach(function (b) {
-        b.onclick = function () { STATE.fontFamily = this.getAttribute('data-font'); storageSet('fontFamily', STATE.fontFamily); applyFont(); buildSettings(); };
-      });
-    }
-    // Text width.
-    var wd = document.getElementById('set-width');
-    if (wd) {
-      var widths = [['600', 'צר'], ['760', 'בינוני'], ['920', 'רחב'], ['full', 'מלא']];
-      wd.innerHTML = widths.map(function (w) {
-        return '<button class="pill' + (STATE.textWidth === w[0] ? ' active' : '') + '" data-width="' + w[0] + '">' + w[1] + '</button>';
-      }).join('');
-      wd.querySelectorAll('[data-width]').forEach(function (b) {
-        b.onclick = function () { STATE.textWidth = this.getAttribute('data-width'); storageSet('textWidth', STATE.textWidth); applyWidth(); buildSettings(); };
-      });
-    }
     var fv = document.getElementById('fs-val'); if (fv) fv.textContent = String(STATE.fontSize);
   }
   function setToggle(id, on, onChange) {

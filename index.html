@@ -61,14 +61,65 @@
   <aside class="panel panel-end" id="panel-settings" aria-label="הגדרות">
     <div class="panel-head"><span>הגדרות</span><button class="tool-btn" data-close aria-label="סגירה"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button></div>
     <div class="panel-body">
-      <div class="set-row"><div class="set-label">נוסח</div><div class="pill-row" id="set-nusach"></div></div>
-      <div class="set-row"><div class="set-label">מתפלל/ת</div><div class="pill-row" id="set-gender"></div></div>
-      <div class="set-row toggle-row"><div class="set-label">אני בארץ ישראל</div><button class="switch" id="set-israel" aria-label="ארץ ישראל"></button></div>
-      <div class="set-row toggle-row"><div class="set-label">מתפלל/ת במניין</div><button class="switch" id="set-minyan" aria-label="מניין"></button></div>
-      <div class="set-row"><div class="set-label">פורים (ערים מוקפות)</div><div class="pill-row" id="set-purim"></div></div>
-      <div class="set-row toggle-row"><div class="set-label">הצגת שם ה׳ כ״ה׳״</div><button class="switch" id="set-censor" aria-label="צנזור שם"></button></div>
-      <div class="set-row"><div class="set-label">גופן הטקסט</div><div class="pill-row" id="set-font"></div></div>
-      <div class="set-row"><div class="set-label">רוחב הטקסט</div><div class="pill-row" id="set-width"></div></div>
+
+      <section class="settings-card">
+        <h3 class="settings-card-title">נוסח ותפילה</h3>
+        <div class="settings-card-body">
+          <div class="settings-row stacked">
+            <div class="settings-row-text">
+              <div class="settings-row-title">נוסח התפילה</div>
+              <div class="settings-row-subtitle">הנוסח שיוצג בכל התפילות</div>
+            </div>
+            <div class="segmented" id="set-nusach" role="group" aria-label="נוסח התפילה"></div>
+          </div>
+          <div class="settings-row stacked">
+            <div class="settings-row-text">
+              <div class="settings-row-title">מתפלל/ת</div>
+            </div>
+            <div class="segmented" id="set-gender" role="group" aria-label="מתפלל/ת"></div>
+          </div>
+          <div class="settings-row stacked">
+            <div class="settings-row-text">
+              <div class="settings-row-title">פורים</div>
+              <div class="settings-row-subtitle">היום שבו ייקראו תוספות פורים (ערים מוקפות)</div>
+            </div>
+            <div class="segmented" id="set-purim" role="group" aria-label="יום פורים"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="settings-card">
+        <h3 class="settings-card-title">הלכה ומיקום</h3>
+        <div class="settings-card-body">
+          <div class="settings-row toggle-row">
+            <div class="settings-row-text"><div class="settings-row-title">אני בארץ ישראל</div></div>
+            <button class="switch" id="set-israel" role="switch" aria-label="ארץ ישראל"></button>
+          </div>
+          <div class="settings-row toggle-row">
+            <div class="settings-row-text"><div class="settings-row-title">מתפלל/ת במניין</div></div>
+            <button class="switch" id="set-minyan" role="switch" aria-label="מניין"></button>
+          </div>
+        </div>
+      </section>
+
+      <section class="settings-card">
+        <h3 class="settings-card-title">תצוגה</h3>
+        <div class="settings-card-body">
+          <div class="settings-row stacked">
+            <div class="settings-row-text"><div class="settings-row-title">גופן הטקסט</div></div>
+            <div class="dropdown-field"><select id="set-font" aria-label="גופן הטקסט"></select></div>
+          </div>
+          <div class="settings-row stacked">
+            <div class="settings-row-text"><div class="settings-row-title">רוחב הטקסט</div></div>
+            <div class="segmented" id="set-width" role="group" aria-label="רוחב הטקסט"></div>
+          </div>
+          <div class="settings-row toggle-row">
+            <div class="settings-row-text"><div class="settings-row-title">הצגת שם ה׳ כ״ה׳״</div></div>
+            <button class="switch" id="set-censor" role="switch" aria-label="צנזור שם"></button>
+          </div>
+        </div>
+      </section>
+
       <div class="set-note">התוספות מזוהות אוטומטית לפי התאריך, הזמנים והפרופיל. סידור חול (שחרית/מנחה/מעריב) + תוספות וברכות.</div>
     </div>
   </aside>

@@ -51,9 +51,9 @@ setTimeout(function () {
 
   // Nusach switch
   const emText = content().length;
-  doc.querySelector('[data-nusach="ashkenaz"]').onclick.call(doc.querySelector('[data-nusach="ashkenaz"]'));
+  doc.querySelector('#set-nusach [data-val="ashkenaz"]').onclick.call(doc.querySelector('#set-nusach [data-val="ashkenaz"]'));
   check('nusach→ashkenaz rerendered', win.SiduronApp.state.nusach === 'ashkenaz' && content().length > 5000);
-  doc.querySelector('[data-nusach="edot_mizrach"]').onclick.call(doc.querySelector('[data-nusach="edot_mizrach"]'));
+  doc.querySelector('#set-nusach [data-val="edot_mizrach"]').onclick.call(doc.querySelector('#set-nusach [data-val="edot_mizrach"]'));
 
   // Israel toggle on CHM Pesach (affects tefillin) — set date first
   win.SiduronApp.setDate('2026-04-05'); // CHM Pesach
@@ -96,16 +96,15 @@ setTimeout(function () {
   // Font family picker + width picker + scroll-collapse.
   win.SiduronApp.setDate('2026-06-18');
   click('btn-settings');
-  const davidPill = doc.querySelector('#set-font [data-font="David"]');
-  check('font picker present', !!davidPill);
-  if (davidPill) {
-    davidPill.onclick.call(davidPill);
+  const fontSel = doc.getElementById('set-font');
+  check('font picker present', !!fontSel && fontSel.tagName === 'SELECT' && fontSel.options.length === 5);
+  if (fontSel) {
+    fontSel.value = 'David'; fontSel.onchange.call(fontSel);
     check('font → David applied', /David/.test(doc.documentElement.style.getPropertyValue('--prayer-font')) && win.SiduronApp.state.fontFamily === 'David');
-    const defPill = doc.querySelector('#set-font [data-font=""]');
-    defPill.onclick.call(defPill);
+    fontSel.value = ''; fontSel.onchange.call(fontSel);
     check('font → default reverts', win.SiduronApp.state.fontFamily === '');
   }
-  const fullPill = doc.querySelector('#set-width [data-width="full"]');
+  const fullPill = doc.querySelector('#set-width [data-val="full"]');
   check('width picker present', !!fullPill);
   if (fullPill) {
     fullPill.onclick.call(fullPill);
