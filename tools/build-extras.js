@@ -48,11 +48,24 @@ const EXTRAS = [
   { id: 'havdala', title: 'הבדלה', category: 'תפילות',
     files: { ashkenaz: 'a_havdala', sfard: 'a_havdala', edot_mizrach: 'em_havdala' } },
   { id: 'hadlakat_ner_chanukah', title: 'הדלקת נרות חנוכה', category: 'מועדים ואירועים',
-    files: { ashkenaz: 'chanukaBrachot', sfard: 'chanukaBrachot', edot_mizrach: 'chanukaBrachot' } },
+    // a_nerot/em_nerot = ברכות + הנרות הללו + מעוז צור (fuller than chanukaBrachot alone)
+    files: { ashkenaz: 'a_nerot', edot_mizrach: 'em_nerot' } },
   { id: 'sheva_brachot', title: 'שבע ברכות', category: 'מועדים ואירועים',
     files: { ashkenaz: 'a_shevaBrachot', sfard: 's_shevaBrachot', edot_mizrach: 'em_shevaBrachot' } },
   { id: 'brit_milah', title: 'סדר ברית מילה', category: 'מועדים ואירועים',
     files: { ashkenaz: 'a_brit', sfard: 's_brit', edot_mizrach: 'em_brit' } },
+  // ── Standalone prayers ported from the Tfilon corpus (nusach-shared unless noted;
+  // missing nusachim fall back to ashkenaz in the renderer). ──────────────────
+  { id: 'megillat_esther', title: 'מגילת אסתר', category: 'מועדים ואירועים',
+    files: { ashkenaz: 'a_ester', edot_mizrach: 'em_ester_arvit' } },
+  { id: 'megillat_eicha', title: 'מגילת איכה', category: 'מועדים ואירועים',
+    files: { ashkenaz: 'eicha' } },
+  { id: 'kinot_tisha_beav', title: 'קינות לליל תשעה באב', category: 'מועדים ואירועים',
+    files: { ashkenaz: 'a_kinotNight' } },
+  { id: 'vayiten_lecha', title: 'ויתן לך (מוצאי שבת)', category: 'תפילות',
+    files: { ashkenaz: 'veyiten' } },
+  { id: 'tefila_lecholeh', title: 'תפילה לרפואת חולה', category: 'תפילות',
+    files: { ashkenaz: 'a_doctor' } },
 ];
 
 // ── Content policy ───────────────────────────────────────────────────────────
@@ -240,7 +253,7 @@ for (const ex of EXTRAS) {
     else {
       const file = ex.files[nusach];
       segs = [];
-      parseFile(file, [], 0, segs);
+      if (file) parseFile(file, [], 0, segs);   // nusach not provided → leave empty (renderer falls back to ashkenaz)
       if (!segs.length) segs = null;
     }
     if (segs) segs = segs.filter(seg => !isForbidden(seg.text));
