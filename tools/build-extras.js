@@ -75,6 +75,65 @@ function isForbidden(text) {
   return FORBIDDEN.some(f => bare.includes(f));
 }
 
+// ── Navigation sections ──────────────────────────────────────────────────────
+// Inject jump-to-section headers (kind:'header') into long prayers so the
+// "קפיצה לקטע" panel can navigate them. Each section is anchored to a segment
+// whose nikud-stripped text contains one of `anyOf`.
+//   mode 'first' (default): header before the FIRST matching segment only.
+//   mode 'each': header before EVERY match — used for blocks that exist in
+//     mutually-exclusive conditional variants (the opening psalm; the
+//     Rosh-Chodesh/festival Ya'aleh-VeYavo). With inheritCond:true the header
+//     carries its segment's cond, so it shows only when that variant shows.
+const SECTIONS = {
+  birkat_hamazon: [
+    { label: 'מזמור פתיחה',  anyOf: ['על נהרות בבל', 'שיר המעלות בשוב'], mode: 'each', inheritCond: true },
+    { label: 'זימון',         anyOf: ['שלשה שאכלו'] },
+    { label: 'ברכת הזן',      anyOf: ['הזן את העולם', 'האל הזן אותנו'] },
+    { label: 'ברכת הארץ',     anyOf: ['נודה לך'] },
+    { label: 'בונה ירושלים',  anyOf: ['ועל ירושלים עירך'] },
+    { label: 'יעלה ויבוא',    anyOf: ['יעלה ויבוא ויגיע'], mode: 'each', inheritCond: true },
+    { label: 'הטוב והמטיב',   anyOf: ['הטוב והמטיב'] },
+    { label: 'הרחמן',         anyOf: ['הרחמן הוא'] },
+  ],
+  kriat_shema_al_hamita: [
+    { label: 'המפיל',     anyOf: ['המפיל חבלי שנה'] },      // edot only (ashk/sfard already have a source header)
+    { label: 'קריאת שמע', anyOf: ['שמע ישראל'] },
+    { label: 'וידוי',     anyOf: ['תבא לפניך תפלתנו'], inheritCond: true }, // recited on tachanun days only
+    { label: 'אנא בכח',   anyOf: ['בכח גדלת ימינך'] },
+  ],
+  kiddush_levana: [
+    { label: 'ברכת הלבנה', anyOf: ['אשר במאמרו ברא שחקים'] }, // (עלינו לשבח already a source header)
+  ],
+  brit_milah: [
+    { label: 'ברוך הבא',   anyOf: ['ברוך הבא'] },
+    { label: 'כסא אליהו',  anyOf: ['זה הכסא של אליהו'] },
+    { label: 'ברכת המילה', anyOf: ['וצונו על המילה'] },
+    { label: 'מתן שם',     anyOf: ['קים את'] },
+  ],
+};
+function insertSections(itemId, segs) {
+  const secs = SECTIONS[itemId];
+  if (!secs) return segs;
+  const existing = new Set(segs.filter(s => s.kind === 'header').map(s => s.text)); // headers already present from source
+  const usedFirst = new Set();
+  const out = [];
+  for (const seg of segs) {
+    const bare = (seg.text || '').replace(NIKUD, '');
+    for (const sec of secs) {
+      if (existing.has(sec.label)) continue;            // don't duplicate a source header
+      const mode = sec.mode || 'first';
+      if (mode === 'first' && usedFirst.has(sec.label)) continue;
+      if (sec.anyOf.some(p => bare.includes(p))) {
+        out.push({ kind: 'header', text: sec.label, cond: sec.inheritCond ? (seg.cond || []).slice() : [] });
+        if (mode === 'first') usedFirst.add(sec.label);
+        break; // at most one header per segment
+      }
+    }
+    out.push(seg);
+  }
+  return out;
+}
+
 // ── Text normalisation ───────────────────────────────────────────────────────
 function normalizeText(s) {
   return s
@@ -185,6 +244,7 @@ for (const ex of EXTRAS) {
       if (!segs.length) segs = null;
     }
     if (segs) segs = segs.filter(seg => !isForbidden(seg.text));
+    if (segs && segs.length) segs = insertSections(ex.id, segs);
     if (segs && segs.length) byNusach[nusach] = segs;
   }
   if (Object.keys(byNusach).length) {
