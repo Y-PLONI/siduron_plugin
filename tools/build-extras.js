@@ -55,6 +55,26 @@ const EXTRAS = [
     files: { ashkenaz: 'a_brit', sfard: 's_brit', edot_mizrach: 'em_brit' } },
 ];
 
+// ── Content policy ───────────────────────────────────────────────────────────
+// Omit modern prayers/blessings for the State of Israel and the IDF (e.g. the
+// "הרחמן הוא יברך את מדינת ישראל / חיילי צבא ההגנה" additions in birkat hamazon).
+// Matching is nikud-insensitive: strip vowel/cantillation marks, then test.
+const NIKUD = /[֑-ׇ]/g;
+const FORBIDDEN = [
+  'מדינת ישראל',
+  'ראשית צמיחת',
+  'שלום המדינה',
+  'צבא ההגנה',
+  'צבא הגנה',
+  'כחות הבטחון',
+  'כוחות הביטחון',
+  'שתי הבקשות הבאות', // the rubric that introduces exactly the two removed requests
+];
+function isForbidden(text) {
+  const bare = (text || '').replace(NIKUD, '');
+  return FORBIDDEN.some(f => bare.includes(f));
+}
+
 // ── Text normalisation ───────────────────────────────────────────────────────
 function normalizeText(s) {
   return s
@@ -164,6 +184,7 @@ for (const ex of EXTRAS) {
       parseFile(file, [], 0, segs);
       if (!segs.length) segs = null;
     }
+    if (segs) segs = segs.filter(seg => !isForbidden(seg.text));
     if (segs && segs.length) byNusach[nusach] = segs;
   }
   if (Object.keys(byNusach).length) {
