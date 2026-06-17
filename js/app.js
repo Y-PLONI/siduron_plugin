@@ -15,7 +15,9 @@
   var STATE = {
     nusach: 'edot_mizrach',     // edot_mizrach | sfard | ashkenaz
     gender: 'male',             // male | female
-    isInIsrael: true,
+    isInIsrael: true,           // derived from the city chosen in Otzaria (not a manual toggle)
+    city: null,                 // selected city name (from Otzaria's calendar), or null
+    country: null,              // its country (Hebrew), or null
     withMinyan: true,
     purimDate: 'fourteenth',    // fourteenth | fifteenth | both
     censorNames: false,
@@ -23,6 +25,7 @@
     fontFamily: '',             // '' = follow Otzaria's font; else a specific family
     textWidth: '760',           // content max-width in px, or 'full'
     themeFont: '',              // Otzaria's typography.fontFamily (captured from theme)
+    platform: '',               // host OS (from plugin.boot): windows|linux|macos|android|ios
     service: null,              // current service id
     extra: null,                // current extra id (within the תוספות view)
     date: null,                 // JS Date (the day we're rendering)
@@ -140,8 +143,32 @@
     return html.replace(TETRA_RE, 'ה׳');
   }
 
+  /* ────────────── Location (from Otzaria's selected city) ────────────── */
+  // We no longer ask the user "are you in Israel?" — we read the city they
+  // picked in Otzaria's calendar (settings key 'key-selected-city') and derive
+  // both the display label and ארץ-ישראל/חו״ל from it, mirroring the host's own
+  // city→country table (data/locations.js). Falls back to Israel when unknown
+  // (e.g. standalone preview, or a city missing from the table).
+  var ISRAEL_COUNTRY = 'ארץ ישראל';
+  async function refreshLocation() {
+    var city = await call('settings.get', { key: 'key-selected-city' });
+    if (typeof city !== 'string' || !city) city = null;
+    var byCity = (window.SIDURON_LOCATIONS && window.SIDURON_LOCATIONS.byCity) || {};
+    var country = city ? (byCity[city] || null) : null;
+    STATE.city = city;
+    STATE.country = country;
+    STATE.isInIsrael = country ? (country === ISRAEL_COUNTRY) : true;
+  }
+  // Short, human label for the day-times strip, e.g. "בני ברק, ישראל".
+  function locationLabel() {
+    if (!STATE.city) return '';
+    var country = STATE.country === ISRAEL_COUNTRY ? 'ישראל' : STATE.country;
+    return country ? STATE.city + ', ' + country : STATE.city;
+  }
+
   /* ────────────── Date + flags ────────────── */
   async function refreshDate() {
+    await refreshLocation();
     var iso = await call('calendar.getSelectedDate');
     var d;
     if (iso) { d = new Date(iso); if (isNaN(d.getTime())) d = new Date(); }
@@ -218,11 +245,21 @@
     ['שקיעה', ['shkiah', 'sunset', 'seaLevelSunset']],
     ['צאת הכוכבים', ['tzeit', 'tzet', 'tzeitGeonim8point5']],
   ];
+  // Location strip above the times — surfaces which city the times were
+  // computed for, so a wrong city in Otzaria can't silently skew the zmanim.
+  function renderLocationStrip() {
+    var place = locationLabel();
+    if (!place) return '';
+    return '<div class="zmanim-loc" title="המיקום נקבע לפי העיר שנבחרה באוצריא">' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-6-5.3-6-10a6 6 0 0 1 12 0c0 4.7-6 10-6 10z"/><circle cx="12" cy="11" r="2.2"/></svg>' +
+      '<span>' + window.SiduronRender.esc(place) + '</span></div>';
+  }
   async function renderZmanim() {
     var el = document.getElementById('zmanim-body');
     if (!el) return;
+    var loc = renderLocationStrip();
     var times = await call('calendar.getDailyTimes');
-    if (!times || typeof times !== 'object') { el.innerHTML = '<div class="muted">זמני היום אינם זמינים</div>'; return; }
+    if (!times || typeof times !== 'object') { el.innerHTML = loc + '<div class="muted">זמני היום אינם זמינים</div>'; return; }
     var html = '';
     for (var i = 0; i < ZMAN_ORDER.length; i++) {
       var lbl = ZMAN_ORDER[i][0], keys = ZMAN_ORDER[i][1], val = null;
@@ -230,7 +267,7 @@
       if (val == null) continue;
       html += '<div class="zman"><span class="z-name">' + lbl + '</span><span class="z-val">' + val + '</span></div>';
     }
-    el.innerHTML = html ? '<div class="panel-card">' + html + '</div>' : '<div class="muted">זמני היום אינם זמינים</div>';
+    el.innerHTML = loc + (html ? '<div class="panel-card">' + html + '</div>' : '<div class="muted">זמני היום אינם זמינים</div>');
   }
 
   /* ────────────── Service tabs + rendering ────────────── */
@@ -321,6 +358,17 @@
     if (STATE.service) openService(STATE.service);
   }
 
+  // Re-read date + location from Otzaria, recompute flags, and repaint
+  // everything (header, tabs, current service, zmanim, settings label).
+  // Used on both calendar.date_changed and city changes.
+  function refreshAndRerender() {
+    return refreshDate().then(function () {
+      renderTabs();
+      if (STATE.service) openService(STATE.service);
+      buildSettings();
+    });
+  }
+
   /* ────────────── Jump-to-section ────────────── */
   function renderNavList() {
     var el = document.getElementById('nav-body');
@@ -405,8 +453,20 @@
     // Text width.
     buildSegment('set-width', [['600', 'צר'], ['760', 'בינוני'], ['920', 'רחב'], ['full', 'מלא']], STATE.textWidth,
       function (v) { STATE.textWidth = v; storageSet('textWidth', v); applyWidth(); buildSettings(); });
+    // Location (read-only — derived from the city chosen in Otzaria).
+    var locEl = document.getElementById('set-location');
+    if (locEl) {
+      var place = locationLabel();
+      locEl.textContent = place
+        ? place + ' · נקבע לפי העיר שנבחרה באוצריא'
+        : 'נקבע לפי העיר שנבחרה באוצריא';
+    }
+    // Desktop shortcut — only meaningful on desktop hosts.
+    var shortcutCard = document.getElementById('card-shortcut');
+    if (shortcutCard) shortcutCard.hidden = !isDesktop();
+    var shortcutBtn = document.getElementById('set-shortcut');
+    if (shortcutBtn) shortcutBtn.onclick = createShortcut;
     // Toggles
-    setToggle('set-israel', STATE.isInIsrael, function (v) { STATE.isInIsrael = v; storageSet('isInIsrael', v); rerender(); });
     setToggle('set-minyan', STATE.withMinyan, function (v) { STATE.withMinyan = v; storageSet('withMinyan', v); rerender(); });
     setToggle('set-censor', STATE.censorNames, function (v) { STATE.censorNames = v; storageSet('censorNames', v); if (STATE.service) openService(STATE.service); });
     var fv = document.getElementById('fs-val'); if (fv) fv.textContent = String(STATE.fontSize);
@@ -441,6 +501,27 @@
     document.documentElement.style.setProperty('--content-width', w);
   }
 
+  /* ────────────── Desktop shortcut (shortcut.create) ────────────── */
+  // Shortcuts are a desktop-only host capability; the host builds a safe
+  // deep-link (otzaria://open/plugin/<id>) and shows its own confirm dialog,
+  // so the plugin only supplies a label.
+  function isDesktop() {
+    return ['windows', 'linux', 'macos'].indexOf(STATE.platform) >= 0;
+  }
+  async function createShortcut() {
+    var btn = document.getElementById('set-shortcut');
+    if (btn) btn.disabled = true;
+    var res = await call('shortcut.create', { label: 'סידורון', location: 'desktop' });
+    if (btn) btn.disabled = false;
+    if (res && res.created) {
+      call('ui.showSuccess', { message: 'נוצר קיצור דרך לסידורון בשולחן העבודה.' });
+    } else if (res && res.created === false) {
+      // User dismissed the host's confirm dialog — nothing to do.
+    } else {
+      call('ui.showError', { message: 'לא ניתן היה ליצור קיצור דרך. ודאו שהענקתם לתוסף הרשאה ליצירת קיצורי דרך.' });
+    }
+  }
+
   /* ────────────── Panels ────────────── */
   function closeAllPanels() {
     var open = document.querySelectorAll('.panel.open');
@@ -456,7 +537,9 @@
 
   /* ────────────── Load / save settings ────────────── */
   async function loadSettings() {
-    var keys = ['nusach', 'gender', 'isInIsrael', 'withMinyan', 'purimDate', 'censorNames', 'fontSize', 'fontFamily', 'textWidth', 'service'];
+    // 'isInIsrael' is intentionally absent — it's derived from Otzaria's
+    // selected city (see refreshLocation), not stored as a manual preference.
+    var keys = ['nusach', 'gender', 'withMinyan', 'purimDate', 'censorNames', 'fontSize', 'fontFamily', 'textWidth', 'service'];
     for (var i = 0; i < keys.length; i++) {
       var k = keys[i]; var v = await storageGet(k);
       if (v == null) continue;
@@ -534,10 +617,19 @@
   onReady(wireUi);
 
   if (typeof window.Otzaria !== 'undefined' && window.Otzaria.on) {
-    window.Otzaria.on('plugin.boot', function (payload) { applyTheme(payload && payload.theme); boot(); });
+    window.Otzaria.on('plugin.boot', function (payload) {
+      if (payload && payload.app && payload.app.platform) STATE.platform = payload.app.platform;
+      applyTheme(payload && payload.theme);
+      boot();
+    });
     window.Otzaria.on('theme.changed', applyTheme);
-    window.Otzaria.on('calendar.date_changed', function () { refreshDate().then(function () { if (STATE.service) { renderTabs(); openService(STATE.service); } }); });
-    window.Otzaria.on('settings.changed', function () { /* font/theme handled via theme.changed */ });
+    window.Otzaria.on('calendar.date_changed', refreshAndRerender);
+    window.Otzaria.on('settings.changed', function (e) {
+      // The selected city lives in the calendar state; changing it re-derives
+      // our location + ארץ-ישראל and can flip flags (tefillin, mussaf, …),
+      // so recompute everything just like a date change.
+      if (e && e.key === 'key-selected-city') refreshAndRerender();
+    });
   } else {
     // Standalone (dev / browser preview) — boot when the DOM is ready.
     onReady(boot);
@@ -549,6 +641,17 @@
       var d = new Date(iso);
       STATE.date = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12, 0, 0);
       rerender();
+    },
+    // Simulate Otzaria's selected city (no SDK in standalone) — derives the
+    // location label + ארץ-ישראל from the same table the host uses.
+    setCity: function (city) {
+      var byCity = (window.SIDURON_LOCATIONS && window.SIDURON_LOCATIONS.byCity) || {};
+      STATE.city = city || null;
+      STATE.country = STATE.city ? (byCity[STATE.city] || null) : null;
+      STATE.isInIsrael = STATE.country ? (STATE.country === ISRAEL_COUNTRY) : true;
+      rerender();
+      renderZmanim();
+      buildSettings();
     },
     state: STATE,
   };

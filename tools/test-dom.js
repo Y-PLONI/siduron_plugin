@@ -36,7 +36,7 @@ function inject(rel) {
 
 // Wait for DOMContentLoaded, then inject scripts in order and let app boot.
 function run() {
-  ['vendor/hebcal.js', 'data/siddur-data.js', 'js/calendar.js', 'js/assembler.js', 'js/render.js', 'js/app.js'].forEach(inject);
+  ['vendor/hebcal.js', 'data/siddur-data.js', 'data/locations.js', 'js/calendar.js', 'js/assembler.js', 'js/render.js', 'js/app.js'].forEach(inject);
   // app.js boots on DOMContentLoaded; that already fired, so trigger its standalone boot path:
   // its init added a DOMContentLoaded listener — fire it again is a no-op, so call boot via the exposed API.
   setTimeout(check, 300);

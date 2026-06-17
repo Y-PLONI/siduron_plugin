@@ -179,6 +179,14 @@ body { overflow: hidden; }
 }
 
 /* Zmanim */
+.zmanim-loc {
+  display: flex; align-items: center; gap: 7px;
+  margin: 4px 2px 10px;
+  color: var(--c-on-surface-variant);
+  font-size: .9rem;
+}
+.zmanim-loc svg { width: 17px; height: 17px; flex: none; color: var(--c-primary); }
+.zmanim-loc span { font-weight: 600; }
 .zman { display: flex; justify-content: space-between; align-items: center; padding: 11px 16px; }
 .panel-card > .zman + .zman { border-top: 1.5px solid var(--c-surface-container-highest); }
 .z-name { color: var(--c-on-surface-variant); }
@@ -273,6 +281,22 @@ body { overflow: hidden; }
 .switch.on { background: var(--c-primary); border-color: var(--c-primary); }
 .switch.on::after { inset-inline-start: 23px; background: var(--c-on-primary); }
 .set-note { font-size: .78rem; color: var(--c-on-surface-variant); line-height: 1.5; margin-top: 18px; }
+
+/* Action button inside a settings row (e.g. create desktop shortcut) */
+.set-action {
+  align-self: flex-start;
+  border: 1px solid var(--c-primary-border);
+  background: var(--c-primary-subtle);
+  color: var(--c-primary);
+  font-family: inherit;
+  font-size: .9rem;
+  font-weight: 600;
+  padding: 9px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.set-action:hover:not(:disabled) { background: var(--c-primary); color: var(--c-on-primary); }
+.set-action:disabled { opacity: .55; cursor: default; }
 
 /* ── Font bar ── */
 .fontbar {

@@ -13,7 +13,7 @@ const dom = new JSDOM(fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8'),
 const win = dom.window, doc = win.document;
 const errors = [];
 win.addEventListener('error', e => errors.push(e.error && e.error.stack || e.message));
-for (const f of ['vendor/hebcal.js', 'data/siddur-data.js', 'data/extras-data.js', 'js/calendar.js', 'js/assembler.js', 'js/render.js', 'js/extras.js', 'js/app.js']) {
+for (const f of ['vendor/hebcal.js', 'data/siddur-data.js', 'data/extras-data.js', 'data/locations.js', 'js/calendar.js', 'js/assembler.js', 'js/render.js', 'js/extras.js', 'js/app.js']) {
   const s = doc.createElement('script'); s.textContent = fs.readFileSync(path.join(ROOT, f), 'utf8');
   doc.body.appendChild(s);
 }
@@ -23,7 +23,7 @@ function check(name, cond) { (cond ? (pass++) : (fail++, 0)); console.log((cond 
 function click(id) { const el = doc.getElementById(id); if (el && el.onclick) el.onclick.call(el); }
 function content() { return doc.getElementById('content').innerHTML; }
 
-setTimeout(function () {
+setTimeout(async function () {
   console.log('load errors:', errors.length); errors.forEach(e => console.log('   ', e));
 
   // Use a Mon/Thu CHM-relevant date with full divine names present.
@@ -55,13 +55,14 @@ setTimeout(function () {
   check('nusach→ashkenaz rerendered', win.SiduronApp.state.nusach === 'ashkenaz' && content().length > 5000);
   doc.querySelector('#set-nusach [data-val="edot_mizrach"]').onclick.call(doc.querySelector('#set-nusach [data-val="edot_mizrach"]'));
 
-  // Israel toggle on CHM Pesach (affects tefillin) — set date first
+  // Location (from Otzaria's selected city) on CHM Pesach (affects tefillin).
   win.SiduronApp.setDate('2026-04-05'); // CHM Pesach
-  const ilOn = win.SiduronApp.state.isInIsrael;
-  check('israel default on', ilOn === true);
-  click('set-israel');
-  check('israel toggled off', win.SiduronApp.state.isInIsrael === false);
-  click('set-israel');
+  check('israel default on (no city)', win.SiduronApp.state.isInIsrael === true);
+  win.SiduronApp.setCity('בני ברק');
+  check('israeli city → inIsrael true', win.SiduronApp.state.isInIsrael === true && win.SiduronApp.state.country === 'ארץ ישראל');
+  win.SiduronApp.setCity('ניו יורק');
+  check('diaspora city → inIsrael false', win.SiduronApp.state.isInIsrael === false && win.SiduronApp.state.country === 'ארצות הברית');
+  win.SiduronApp.setCity('ירושלים'); // restore Israel for the rest of the run
 
   // Jump-to-section
   win.SiduronApp.setDate('2026-05-17');
@@ -114,6 +115,26 @@ setTimeout(function () {
   Object.defineProperty(scEl, 'scrollTop', { value: 120, configurable: true });
   scEl.dispatchEvent(new win.Event('scroll'));
   check('header collapses on scroll', doc.body.classList.contains('scrolled') && doc.getElementById('hdr-svc').textContent.length > 0);
+
+  // Desktop shortcut (shortcut.create) — gated to desktop platforms.
+  check('shortcut card hidden off-desktop', doc.getElementById('card-shortcut').hidden === true);
+  const sdkCalls = [];
+  win.Otzaria = {
+    call: (m, p) => { sdkCalls.push([m, p]); return Promise.resolve({ success: true, data: m === 'shortcut.create' ? { created: true, path: '~/Desktop/סידורון.webloc' } : null }); },
+    on() {}, off() {},
+  };
+  win.SiduronApp.state.platform = 'macos';
+  click('btn-settings'); // rebuilds settings → reveals the card + wires the button
+  check('shortcut card visible on desktop', doc.getElementById('card-shortcut').hidden === false);
+  const sBtn = doc.getElementById('set-shortcut');
+  check('shortcut button present', !!sBtn);
+  if (sBtn) {
+    sBtn.onclick.call(sBtn);
+    await new Promise(r => setTimeout(r, 10));
+    check('shortcut.create called with label+location',
+      sdkCalls.some(c => c[0] === 'shortcut.create' && c[1] && c[1].label === 'סידורון' && c[1].location === 'desktop'));
+    check('success toast on created', sdkCalls.some(c => c[0] === 'ui.showSuccess'));
+  }
 
   check('no runtime errors', errors.length === 0);
   console.log(`\n=== INTERACTIONS: ${fail === 0 ? 'PASS' : 'FAIL'} (${pass} passed, ${fail} failed) ===`);

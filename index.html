@@ -91,9 +91,11 @@
       <section class="settings-card">
         <h3 class="settings-card-title">הלכה ומיקום</h3>
         <div class="settings-card-body">
-          <div class="settings-row toggle-row">
-            <div class="settings-row-text"><div class="settings-row-title">אני בארץ ישראל</div></div>
-            <button class="switch" id="set-israel" role="switch" aria-label="ארץ ישראל"></button>
+          <div class="settings-row stacked">
+            <div class="settings-row-text">
+              <div class="settings-row-title">מיקום</div>
+              <div class="settings-row-subtitle" id="set-location">נקבע לפי העיר שנבחרה באוצריא</div>
+            </div>
           </div>
           <div class="settings-row toggle-row">
             <div class="settings-row-text"><div class="settings-row-title">מתפלל/ת במניין</div></div>
@@ -120,6 +122,19 @@
         </div>
       </section>
 
+      <section class="settings-card" id="card-shortcut" hidden>
+        <h3 class="settings-card-title">כללי</h3>
+        <div class="settings-card-body">
+          <div class="settings-row stacked">
+            <div class="settings-row-text">
+              <div class="settings-row-title">קיצור דרך לסידורון</div>
+              <div class="settings-row-subtitle">פתיחת התוסף ישירות משולחן העבודה</div>
+            </div>
+            <button class="set-action" id="set-shortcut" type="button">צור קיצור דרך בשולחן העבודה</button>
+          </div>
+        </div>
+      </section>
+
       <div class="set-note">התוספות מזוהות אוטומטית לפי התאריך, הזמנים והפרופיל. סידור חול (שחרית/מנחה/מעריב) + תוספות וברכות.</div>
     </div>
   </aside>
@@ -127,6 +142,7 @@
   <script src="vendor/hebcal.js"></script>
   <script src="data/siddur-data.js"></script>
   <script src="data/extras-data.js"></script>
+  <script src="data/locations.js"></script>
   <script src="js/calendar.js"></script>
   <script src="js/assembler.js"></script>
   <script src="js/render.js"></script>

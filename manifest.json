@@ -18,6 +18,7 @@
     "plugin.storage.read",
     "plugin.storage.write",
     "ui.feedback",
+    "ui.create_shortcut",
     "events.subscribe:theme.changed",
     "events.subscribe:calendar.date_changed",
     "events.subscribe:settings.changed"
