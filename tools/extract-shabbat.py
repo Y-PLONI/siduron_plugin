@@ -76,7 +76,34 @@ def subsection(heref):
     parts = [p.strip() for p in (heref or '').split(',')]
     return parts[-2] if len(parts) >= 2 else ''
 
+def rows_to_segs(rows):
+    segs, last_sub = [], None
+    for heref, content in rows:
+        sub = subsection(heref)
+        seg = line_to_seg(content)
+        if seg is None:
+            continue
+        if sub and sub != last_sub and seg['kind'] != 'header':
+            segs.append({'kind': 'header', 'text': sub})
+        last_sub = sub
+        segs.append(seg)
+    return segs
+
 conn = sqlite3.connect('file:%s?mode=ro' % DB, uri=True)
+
+# עדות-מזרח quirk: 5777's "שחרית של שבת" is a CONTINUATION — it opens with the
+# rubric "מתפללים שחרית של חול עד סוף ה' מלך וממשיכים". So for EM shacharit we
+# prepend the weekday morning (השכמת הבוקר + שחרית לימי החול through "הושיענו",
+# lineIndex ≤ 168 — line 169 is the "בשבת ממשיכים…" seam) so the service is
+# self-contained like sfard/ashkenaz. (Sfard 5775 / Ashkenaz 5780 already inline
+# the full morning in their shabbat sections, so no prepend needed there.)
+def em_weekday_morning():
+    rows = conn.execute(
+        "SELECT heRef, content FROM line WHERE bookId=5777 AND "
+        "(heRef LIKE '%סדר השכמת הבוקר%' OR (heRef LIKE '%שחרית לימי החול%' AND lineIndex <= 168)) "
+        "ORDER BY lineIndex").fetchall()
+    return rows_to_segs(rows)
+
 out = {}
 for nusach, cfg in CONFIG.items():
     book = cfg['book']
@@ -87,19 +114,48 @@ for nusach, cfg in CONFIG.items():
             rows = conn.execute(
                 "SELECT heRef, content FROM line WHERE bookId=? AND heRef LIKE ? ORDER BY lineIndex",
                 (book, '%' + prefix + '%')).fetchall()
-            last_sub = None
-            for heref, content in rows:
-                sub = subsection(heref)
-                seg = line_to_seg(content)
-                if seg is None:
-                    continue
-                # Insert a section header at each sub-section boundary, unless the
-                # line itself already is a <big> header.
-                if sub and sub != last_sub and seg['kind'] != 'header':
-                    segs.append({'kind': 'header', 'text': sub})
-                last_sub = sub
-                segs.append(seg)
+            segs.extend(rows_to_segs(rows))
+        if nusach == 'edot_mizrach' and svc == 'shacharit':
+            # drop the now-redundant "מתפללים שחרית של חול…" lead-in, then prepend
+            # the weekday morning so the service is self-contained.
+            segs = [s for s in segs if 'מתפללים שחרית של חול' not in s.get('text', '')]
+            segs = em_weekday_morning() + segs
         out[nusach][svc] = segs
+
+# ── Yom-Tov (שלש רגלים) ───────────────────────────────────────────────────────
+# The DB encodes ALL festivals inline with rubrics (בפסח/בשבועות/בסוכות/בש"ע, and
+# בשבת for a festival that falls on Shabbat), so one festival amidah/musaf serves
+# all regalim. EM (5777) stores only the INSERT content ("תפילה לשלש רגלים":
+# psalms + shared amidah + musaf) — the rest of the service is the regular
+# framework. We COMPOSE a self-contained service: weekday framework + festival
+# amidah + Hallel + (torah-reading rubric) + festival musaf. Full Hallel & the
+# festival amidah replace the weekday ones; the festival torah reading itself is
+# not in this siddur (read from the חומש) so we mark it with a rubric.
+# sfard (5775) / ashkenaz (5780) yom-tov are a later pass.
+def fetch(book, where, params=()):
+    rows = conn.execute(
+        "SELECT heRef, content FROM line WHERE bookId=? AND " + where + " ORDER BY lineIndex",
+        (book,) + params).fetchall()
+    return rows_to_segs(rows)
+
+yomtov = {}
+EM = 5777
+em_morning = fetch(EM, "(heRef LIKE '%סדר השכמת הבוקר%' OR (heRef LIKE '%שחרית לימי החול%' AND lineIndex < 222))")
+em_arvit_fw = fetch(EM, "heRef LIKE '%ערבית לימי החול%' AND lineIndex BETWEEN 658 AND 683")  # ברכו + ק"ש, before עמידה
+em_mincha_fw = fetch(EM, "heRef LIKE '%מנחה לימי החול%' AND lineIndex BETWEEN 502 AND 518")    # קרבנות, before עמידה
+em_hallel = fetch(EM, "heRef LIKE '%הלל לראש חודש ולמועדים%'")
+em_yt_psalms = fetch(EM, "heRef LIKE '%לשלש רגלים%' AND heRef LIKE '%מזמור%'")
+em_yt_amida = fetch(EM, "heRef LIKE '%לשלש רגלים, עמידה%'")
+# the מוסף heRef block also carries the יו"ט-night kiddushim/אושפיזין/זוהר as inline
+# <big> content from line 2501 on — keep only the musaf amidah itself (2442–2500).
+em_yt_musaf = fetch(EM, "heRef LIKE '%לשלש רגלים, מוסף%' AND lineIndex < 2501")
+torah_rubric = [{'kind': 'instruction',
+                 'text': 'כאן מוציאים ספר תורה וקוראים את קריאת היום של החג (מן החומש), ואחריה ההפטרה.'}]
+yomtov['edot_mizrach'] = {
+    'maariv':    em_arvit_fw + em_yt_amida,
+    'shacharit': em_morning + em_yt_psalms + em_yt_amida + em_hallel + torah_rubric + em_yt_musaf,
+    'mincha':    em_mincha_fw + em_yt_amida,
+}
 
 conn.close()
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
@@ -107,7 +163,8 @@ header = ('/* shabbat-data.js — GENERATED by tools/extract-shabbat.py from Otz
           ' * seforim.db (authoritative). Shabbat/Yom-Tov services per nusach.\n'
           ' * Do not edit by hand; re-run the extractor to refresh. */\n')
 with open(OUT, 'w', encoding='utf-8') as f:
-    f.write(header + 'window.SIDURON_SHABBAT = ' + json.dumps(out, ensure_ascii=False) + ';\n')
+    f.write(header + 'window.SIDURON_SHABBAT = ' + json.dumps(out, ensure_ascii=False) + ';\n'
+            + 'window.SIDURON_YOMTOV = ' + json.dumps(yomtov, ensure_ascii=False) + ';\n')
 
 kb = os.path.getsize(OUT) / 1024
 print('Wrote data/shabbat-data.js (%.0f KB)' % kb)

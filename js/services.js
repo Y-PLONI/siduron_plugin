@@ -150,11 +150,8 @@
     return !!(d && d[nusach] && d[nusach][service] && d[nusach][service].length);
   }
 
-  // Render one service → { html, nav }.
-  function render(nusach, service, dayFlags) {
-    var d = data();
-    var segs = (d && d[nusach] && d[nusach][service]) || [];
-    if (!segs.length) return null;     // no tfilon service for this nusach → caller falls back
+  // Render a flat seg list ({kind,text,cond?}) → { html, nav }.
+  function renderSegs(segs, dayFlags) {
     var hasF = makeHas(dayFlags);
     var out = [], nav = [], n = 0;
     for (var i = 0; i < segs.length; i++) {
@@ -180,5 +177,44 @@
     return { html: out.join('\n'), nav: nav };
   }
 
-  global.SiduronServices = { render: render, has: has, _evalTag: evalTag };
+  // Weekday services (Tfilon) — window.SIDURON_SERVICES.
+  function render(nusach, service, dayFlags) {
+    var d = data();
+    var segs = (d && d[nusach] && d[nusach][service]);
+    if (!segs || !segs.length) return null;   // caller falls back
+    return renderSegs(segs, dayFlags);
+  }
+
+  // Shabbat / Yom-Tov services (seforim.db) — window.SIDURON_SHABBAT.
+  function shabbatData() { return global.SIDURON_SHABBAT; }
+  function hasShabbat(nusach, service) {
+    var d = shabbatData();
+    return !!(d && d[nusach] && d[nusach][service] && d[nusach][service].length);
+  }
+  function renderShabbat(nusach, service, dayFlags) {
+    var d = shabbatData();
+    var segs = (d && d[nusach] && d[nusach][service]);
+    if (!segs || !segs.length) return null;
+    return renderSegs(segs, dayFlags);
+  }
+
+  // Yom-Tov services (seforim.db) — window.SIDURON_YOMTOV.
+  function yomtovData() { return global.SIDURON_YOMTOV; }
+  function hasYomtov(nusach, service) {
+    var d = yomtovData();
+    return !!(d && d[nusach] && d[nusach][service] && d[nusach][service].length);
+  }
+  function renderYomtov(nusach, service, dayFlags) {
+    var d = yomtovData();
+    var segs = (d && d[nusach] && d[nusach][service]);
+    if (!segs || !segs.length) return null;
+    return renderSegs(segs, dayFlags);
+  }
+
+  global.SiduronServices = {
+    render: render, has: has,
+    renderShabbat: renderShabbat, hasShabbat: hasShabbat,
+    renderYomtov: renderYomtov, hasYomtov: hasYomtov,
+    _evalTag: evalTag,
+  };
 })(typeof window !== 'undefined' ? window : this);

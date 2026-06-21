@@ -42,9 +42,42 @@
     { id: 'extras', he: 'תוספות', extras: true },
   ];
 
-  // App service id → Tfilon service key (js/services.js). Services not listed
-  // here (e.g. omer) fall through to the smart-siddur assembler.
+  // App service id → Tfilon (weekday) service key (js/services.js). Services not
+  // listed here (e.g. omer) fall through to the smart-siddur assembler.
   var SERVICE_TO_TFILON = { shacharit: 'shacharit', mincha: 'mincha', maariv: 'arvit' };
+
+  // Which SIDURON_SHABBAT service to show for a given app service today, by the
+  // halachic day-model (a service belongs to the night that *enters* its day):
+  //   • מעריב → the Shabbat night service (קבלת שבת + ערבית) on ערב שבת (Friday).
+  //     On שבת itself (Saturday) מעריב is מוצאי-שבת = the WEEKDAY arvit (returns
+  //     null → Tfilon, which adds אתה חוננתנו via the shabbat flag).
+  //   • שחרית / מנחה → the Shabbat service on שבת (Saturday).
+  // Returns null when today's service isn't a Shabbat one (→ weekday Tfilon).
+  function shabbatServiceKey(serviceId, dayFlags) {
+    var flags = (dayFlags && dayFlags.flags) || [];
+    var isShabbat = flags.indexOf('shabbat') >= 0;
+    var isErevShabbat = flags.indexOf('erev_shabbat') >= 0;
+    if (serviceId === 'maariv') return isErevShabbat ? 'maariv' : null;
+    if (serviceId === 'shacharit') return isShabbat ? 'shacharit' : null;
+    if (serviceId === 'mincha') return isShabbat ? 'mincha' : null;
+    return null;
+  }
+
+  // Full Yom-Tov of the שלש רגלים (festival amidah + musaf + hallel). NOT חול
+  // המועד (weekday amidah + insertions) and NOT ראש השנה/יום כיפור (separate
+  // machzorim). חוה"מ סוכות also carries the `sukkot` flag, so exclude when a
+  // chol-hamoed flag is set. Takes precedence over Shabbat — the festival amidah
+  // already folds in the בשבת rubrics for a festival that falls on Shabbat.
+  function yomtovServiceKey(serviceId, dayFlags) {
+    var f = (dayFlags && dayFlags.flags) || [];
+    function has(x) { return f.indexOf(x) >= 0; }
+    var cholHamoed = has('chol_hamoed_pesach') || has('chol_hamoed_sukkot');
+    var fullYT = (has('pesach') || has('shavuot') || has('sukkot') ||
+                  has('shemini_atzeret') || has('simchat_torah')) && !cholHamoed;
+    if (!fullYT) return null;
+    if (serviceId === 'shacharit' || serviceId === 'mincha' || serviceId === 'maariv') return serviceId;
+    return null;
+  }
 
   var NUSACHIM = [
     { id: 'edot_mizrach', he: 'עדות המזרח' },
@@ -308,10 +341,18 @@
     var result;
     try {
       // Main services (שחרית/מנחה/מעריב) for all nuschaot are sourced from the
-      // Tfilon corpus (js/services.js) — complete & correct per-nusach text.
-      // Other services (ספירת העומר) still use the smart-siddur assembler.
+      // Tfilon corpus on weekdays (js/services.js) and from seforim.db on
+      // Shabbat (window.SIDURON_SHABBAT). Other services (ספירת העומר) still use
+      // the smart-siddur assembler.
       var tfilonSvc = SERVICE_TO_TFILON[id];
-      if (tfilonSvc && window.SiduronServices && window.SiduronServices.has(STATE.nusach, tfilonSvc)) {
+      var yomtovSvc = yomtovServiceKey(id, STATE.dayFlags);
+      var shabbatSvc = shabbatServiceKey(id, STATE.dayFlags);
+      var S = window.SiduronServices;
+      if (yomtovSvc && S && S.hasYomtov(STATE.nusach, yomtovSvc)) {
+        result = S.renderYomtov(STATE.nusach, yomtovSvc, STATE.dayFlags);
+      } else if (shabbatSvc && S && S.hasShabbat(STATE.nusach, shabbatSvc)) {
+        result = S.renderShabbat(STATE.nusach, shabbatSvc, STATE.dayFlags);
+      } else if (tfilonSvc && window.SiduronServices && window.SiduronServices.has(STATE.nusach, tfilonSvc)) {
         result = window.SiduronServices.render(STATE.nusach, tfilonSvc, STATE.dayFlags);
       } else {
         var templateId = svc.template(STATE.nusach);
