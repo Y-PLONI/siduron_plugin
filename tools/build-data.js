@@ -128,6 +128,67 @@ function moveSegmentBlock(segs, startId, endId, beforeId) {
   }
 }
 
+// ── Nusach fix: Edot HaMizrach kaddish — וְיַצְמַח פּוּרְקָנֵהּ וִיקָרֵב מְשִׁיחֵהּ ─────
+// The ported edot_mizrach kaddish_body was byte-identical to Ashkenaz and dropped
+// the Sephardic phrase that follows וְיַמְלִיךְ מַלְכוּתֵהּ. Insert it (all kaddish
+// types share kaddish_body, so this fixes חצי/יתום/תתקבל/דרבנן at once). Idempotent:
+// no-ops if פּוּרְקָנֵהּ is already present. Confirmed vs Otzaria seforim.db (5778).
+{
+  const seg = out.nusach.edot_mizrach.kaddish_body;
+  if (seg && Array.isArray(seg.sections)) {
+    let patched = false;
+    for (const sec of seg.sections) {
+      if (!Array.isArray(sec.text)) continue;
+      sec.text = sec.text.map(line => {
+        if (typeof line !== 'string') return line;
+        if (line.indexOf('פּוּרְקָנֵהּ') >= 0) return line;       // already fixed
+        if (line.indexOf('וְיַמְלִיךְ מַלְכוּתֵהּ בְּחַיֵּיכוֹן') < 0) return line;
+        patched = true;
+        return line.replace('וְיַמְלִיךְ מַלְכוּתֵהּ בְּחַיֵּיכוֹן',
+          'וְיַמְלִיךְ מַלְכוּתֵהּ וְיַצְמַח פּוּרְקָנֵהּ וִיקָרֵב מְשִׁיחֵהּ בְּחַיֵּיכוֹן');
+      });
+    }
+    if (!patched) console.log('! edot_mizrach kaddish_body: ויצמח-פורקניה anchor not found');
+  }
+}
+
+// ── Nusach fix: Edot HaMizrach — move משנת 'אלו דברים' into the קרבנות ──────────
+// Sephardim do NOT say אלו דברים right after ברכות התורה (where the ported template
+// placed it); it belongs inside the קרבנות, after פרשת העקידה and before
+// 'לעולם יהא אדם'. Move the elu_devarim segment to just before leolam_yehe_adam.
+// Keyed by id → no-ops safely if the upstream template changes.
+{
+  const t = out.templates['shacharit_lifnei_hatfila_edot_mizrach'];
+  if (t && Array.isArray(t.segments)) {
+    const idOf = s => s.segment_id || s.sub_template_id;
+    const from = t.segments.findIndex(s => idOf(s) === 'elu_devarim');
+    if (from >= 0) {
+      const [entry] = t.segments.splice(from, 1);
+      const before = t.segments.findIndex(s => idOf(s) === 'leolam_yehe_adam');
+      if (before >= 0) t.segments.splice(before, 0, entry);
+      else { t.segments.splice(from, 0, entry); console.log('! edot_mizrach elu_devarim: leolam_yehe_adam anchor not found'); }
+    }
+  }
+}
+
+// ── Nusach gap: Ashkenaz — פסוקי 'בָּרוּךְ ה׳' before ויברך דוד ─────────────────
+// In Ashkenaz, after תהילים ק״נ (כל הנשמה) and before ויברך דוד come four ברוך
+// verses. The ported template jumped straight from psalm_150 to vayevarech_david.
+// Insert a baruch_hashem common segment (defined in data-overrides/) between them.
+// Confirmed vs Otzaria seforim.db (5780). Idempotent.
+{
+  const t = out.templates['shacharit_pesukei_dezimra_ashkenaz'];
+  if (t && Array.isArray(t.segments)) {
+    const idOf = s => s.segment_id || s.sub_template_id;
+    if (!t.segments.some(s => idOf(s) === 'baruch_hashem')) {
+      const at = t.segments.findIndex(s => idOf(s) === 'vayevarech_david');
+      const entry = { segment_id: 'baruch_hashem', condition_flags: [], exclude_flags: [], optional: false, allowed_nusach: [] };
+      if (at >= 0) t.segments.splice(at, 0, entry);
+      else console.log('! ashkenaz pesukei dezimra: vayevarech_david anchor not found');
+    }
+  }
+}
+
 // ── Common-segment text overrides ───────────────────────────────────────────
 // Corrected/restored segment texts that the upstream corpus got wrong, kept as
 // tracked JSON in tools/data-overrides/ so the fix survives regeneration.

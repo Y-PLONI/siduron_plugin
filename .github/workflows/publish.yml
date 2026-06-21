@@ -1,0 +1,44 @@
+name: ולידציה ופרסום לחנות אוצריא
+
+# מקפל את התוסף, מריץ את אותן בדיקות כמו חנות אוצריא, ומפרסם אוטומטית
+# כשגרסה חדשה נדחפת ל-master. גרסה שכבר קיימת בחנות לא תפורסם מחדש
+# (אלא אם force=true), אז דחיפה רגילה בטוחה.
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'manifest.json'
+      - 'index.html'
+      - 'css/**'
+      - 'data/**'
+      - 'fonts/**'
+      - 'icon/**'
+      - 'js/**'
+      - 'vendor/**'
+  workflow_dispatch:        # מאפשר הרצה ידנית מלשונית Actions
+    inputs:
+      publish:
+        description: 'לפרסם לחנות? (auto/true/false)'
+        default: 'auto'
+      force:
+        description: 'לפרסם גם אם הגרסה כבר קיימת'
+        type: boolean
+        default: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: ולידציה, קיפול ופרסום
+        uses: Otzaria/otzaria-plugin-validator@v1
+        with:
+          path: .
+          otzaria-user: ${{ secrets.OTZARIA_USER }}
+          otzaria-password: ${{ secrets.OTZARIA_PASSWORD }}
+          publish: ${{ github.event.inputs.publish || 'auto' }}
+          force: ${{ github.event.inputs.force || false }}
+          # לשחרור ראשון של תוסף חדש החנות דורשת צילומי מסך:
+          # screenshots: 'screenshots/01.png,screenshots/02.png'

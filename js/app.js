@@ -562,12 +562,25 @@
 
     // Collapse the header (tabs + badges) on scroll, surfacing the compact
     // prayer title — gives the text more vertical room while reading.
+    // Direction-aware: scrolling DOWN collapses, scrolling UP (even slightly)
+    // restores it immediately — no need to return to the very top.
     var sc = document.getElementById('reader-scroll');
     if (sc) {
       var collapsed = false;
+      var lastTop = 0;
       sc.addEventListener('scroll', function () {
-        var should = sc.scrollTop > 36;
+        var top = sc.scrollTop;
+        var delta = top - lastTop;
+        var should = collapsed;
+        if (top <= 36) {
+          should = false;          // near the top → always expanded
+        } else if (delta > 4) {
+          should = true;           // scrolling down → collapse
+        } else if (delta < -4) {
+          should = false;          // scrolling up → expand
+        }
         if (should !== collapsed) { collapsed = should; document.body.classList.toggle('scrolled', should); }
+        lastTop = top;
       });
     }
   }

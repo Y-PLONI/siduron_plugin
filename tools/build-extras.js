@@ -157,6 +157,25 @@ function normalizeText(s) {
     .trim();
 }
 
+// ── Text corrections ─────────────────────────────────────────────────────────
+// Targeted fixes for text the Tfilon corpus got wrong, applied after
+// normalizeText. The find string is built from explicit codepoints because the
+// corpus stores some nikud in a non-canonical order (e.g. dagesh-before-sheva)
+// that an editor-typed literal won't match.
+const CC = (...c) => String.fromCharCode(...c);
+const CORRECTIONS = [
+  // הָרַחֲמָן הוּא יוֹלִיכֵנוּ … קוֹמְמִיּוּת בְּאַרְצֵנוּ  →  … לְאַרְצֵנוּ
+  // (em_mazon: standard text is "קוממיות לארצנו"; "בארצנו" is an error —
+  //  confirmed vs Otzaria seforim.db across all nuschaot.)
+  { find: 'קוֹמְמִיּוּת ' + CC(0x5d1, 0x5bc, 0x5b0, 0x5d0, 0x5b7, 0x5e8, 0x5b0, 0x5e6, 0x5b5, 0x5e0, 0x5d5, 0x5bc),
+    repl: 'קוֹמְמִיּוּת לְאַרְצֵנוּ' },
+];
+function applyCorrections(text) {
+  let t = text;
+  for (const c of CORRECTIONS) t = t.split(c.find).join(c.repl);
+  return t;
+}
+
 // ── Recursive parse of one Tfilon file → token segments ──────────────────────
 // Each segment: { kind:'text'|'instruction'|'special'|'winter'|'summer'|'header',
 //                 text, cond:[tags] }  (cond = AND of include-chain conditions)
@@ -209,7 +228,7 @@ function processLines(chunk, condChain, depth, out, kind) {
   let buf = [];
   function flush() {
     if (!buf.length) return;
-    const t = normalizeText(buf.join('\n'));
+    const t = applyCorrections(normalizeText(buf.join('\n')));
     if (t) out.push({ kind: kind || 'text', text: t, cond: condChain.slice() });
     buf = [];
   }
