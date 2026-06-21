@@ -19,11 +19,13 @@
 'use strict';
 const fs = require('fs');
 const path = require('path');
+const { createParser, isForbidden } = require('./lib/tfilon');
 
 const ROOT = path.resolve(__dirname, '..');
 const TF = path.join(ROOT, 'tfilon.tfilon_38_1734630-1', 'assets');
 const SS = path.join(ROOT, 'smart-siddur', 'assets', 'prayers');
 const OUT = path.join(ROOT, 'data', 'extras-data.js');
+const tfilon = createParser(TF);
 
 // ── Curated extras. Each maps a stable id+title+category to per-nusach entry
 // files (Tfilon prefixes a_=Ashkenaz, s_=Sefard, em_=Edot Mizrach). ──────────
@@ -68,25 +70,7 @@ const EXTRAS = [
     files: { ashkenaz: 'a_doctor' } },
 ];
 
-// ── Content policy ───────────────────────────────────────────────────────────
-// Omit modern prayers/blessings for the State of Israel and the IDF (e.g. the
-// "הרחמן הוא יברך את מדינת ישראל / חיילי צבא ההגנה" additions in birkat hamazon).
-// Matching is nikud-insensitive: strip vowel/cantillation marks, then test.
 const NIKUD = /[֑-ׇ]/g;
-const FORBIDDEN = [
-  'מדינת ישראל',
-  'ראשית צמיחת',
-  'שלום המדינה',
-  'צבא ההגנה',
-  'צבא הגנה',
-  'כחות הבטחון',
-  'כוחות הביטחון',
-  'שתי הבקשות הבאות', // the rubric that introduces exactly the two removed requests
-];
-function isForbidden(text) {
-  const bare = (text || '').replace(NIKUD, '');
-  return FORBIDDEN.some(f => bare.includes(f));
-}
 
 // ── Navigation sections ──────────────────────────────────────────────────────
 // Inject jump-to-section headers (kind:'header') into long prayers so the
@@ -147,105 +131,13 @@ function insertSections(itemId, segs) {
   return out;
 }
 
-// ── Text normalisation ───────────────────────────────────────────────────────
-function normalizeText(s) {
-  return s
-    .replace(/~/g, '')          // un-censor divine names (י~הוה → יהוה)
-    .replace(/K/g, 'ָ')    // kamatz-katan marker → kamatz vowel
-    .replace(/;/g, ':')         // sof-pasuk → colon
-    .replace(/[ \t]+/g, ' ')
-    .trim();
-}
-
-// ── Text corrections ─────────────────────────────────────────────────────────
-// Targeted fixes for text the Tfilon corpus got wrong, applied after
-// normalizeText. The find string is built from explicit codepoints because the
-// corpus stores some nikud in a non-canonical order (e.g. dagesh-before-sheva)
-// that an editor-typed literal won't match.
-const CC = (...c) => String.fromCharCode(...c);
-const CORRECTIONS = [
-  // הָרַחֲמָן הוּא יוֹלִיכֵנוּ … קוֹמְמִיּוּת בְּאַרְצֵנוּ  →  … לְאַרְצֵנוּ
-  // (em_mazon: standard text is "קוממיות לארצנו"; "בארצנו" is an error —
-  //  confirmed vs Otzaria seforim.db across all nuschaot.)
-  { find: 'קוֹמְמִיּוּת ' + CC(0x5d1, 0x5bc, 0x5b0, 0x5d0, 0x5b7, 0x5e8, 0x5b0, 0x5e6, 0x5b5, 0x5e0, 0x5d5, 0x5bc),
-    repl: 'קוֹמְמִיּוּת לְאַרְצֵנוּ' },
-];
-function applyCorrections(text) {
-  let t = text;
-  for (const c of CORRECTIONS) t = t.split(c.find).join(c.repl);
-  return t;
-}
-
-// ── Recursive parse of one Tfilon file → token segments ──────────────────────
-// Each segment: { kind:'text'|'instruction'|'special'|'winter'|'summer'|'header',
-//                 text, cond:[tags] }  (cond = AND of include-chain conditions)
-function readFile(name) {
-  const p = path.join(TF, name);
-  if (!fs.existsSync(p)) return null;
-  return fs.readFileSync(p, 'utf8').replace(/^﻿/, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-}
-
-const BLOCKS = [
-  { open: '(:', close: ':)', kind: 'instruction' },
-  { open: '([', close: '])', kind: 'special' },
-  { open: '(---', close: '---)', kind: 'winter' },
-  { open: '(===', close: '===)', kind: 'summer' },
-];
-
-function parseFile(name, condChain, depth, out, kind) {
-  if (depth > 25) return;
-  const text = readFile(name);
-  if (text == null) return;
-  parseText(text, condChain, depth, out, kind);
-}
-
-// Scan for block markers; plain regions are line-processed (includes/headers/
-// text); a block's inner content is parsed RECURSIVELY (so includes inside a
-// (:…:) / ([…]) / (---…---) / (===…===) block resolve), tagged with that
-// block's styling `kind` which then propagates through its nested includes.
-function parseText(text, condChain, depth, out, kind) {
-  let i = 0;
-  while (i < text.length) {
-    let best = null;
-    for (const b of BLOCKS) {
-      const idx = text.indexOf(b.open, i);
-      if (idx >= 0 && (best === null || idx < best.idx)) best = { idx, b };
-    }
-    const sliceEnd = best ? best.idx : text.length;
-    processLines(text.slice(i, sliceEnd), condChain, depth, out, kind);
-    if (!best) break;
-    const b = best.b;
-    const closeIdx = text.indexOf(b.close, best.idx + b.open.length);
-    if (closeIdx < 0) { processLines(text.slice(best.idx), condChain, depth, out, kind); break; }
-    const inner = text.slice(best.idx + b.open.length, closeIdx);
-    parseText(inner, condChain, depth + 1, out, b.kind);
-    i = closeIdx + b.close.length;
+// Parse one Tfilon entry file → segment list, dropping any unresolved includes.
+function parseFile(name, _condChain, _depth, out) {
+  const segs = tfilon.parseEntry(name);
+  for (const s of segs) {
+    if (s.kind === 'missing') { console.log('  ! missing include:', s.text); continue; }
+    out.push(s);
   }
-}
-
-function processLines(chunk, condChain, depth, out, kind) {
-  const lines = chunk.split('\n');
-  let buf = [];
-  function flush() {
-    if (!buf.length) return;
-    const t = applyCorrections(normalizeText(buf.join('\n')));
-    if (t) out.push({ kind: kind || 'text', text: t, cond: condChain.slice() });
-    buf = [];
-  }
-  for (let raw of lines) {
-    const line = raw.trim();
-    const inc = line.match(/^\(\)(\S+)(?:\s+(\S+))?\s*$/);
-    if (inc) {
-      flush();
-      const childCond = inc[2] ? condChain.concat([inc[2]]) : condChain;
-      parseFile(inc[1], childCond, depth + 1, out, kind);
-      continue;
-    }
-    const hdr = line.match(/^-{5,}\s*(.*)$/);
-    if (hdr) { flush(); if (hdr[1]) out.push({ kind: 'header', text: hdr[1].trim(), cond: condChain.slice() }); continue; }
-    buf.push(raw);
-  }
-  flush();
 }
 
 // ── smart-siddur source for asher_yatzar (per-nusach or common segment) ──────

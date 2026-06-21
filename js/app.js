@@ -42,6 +42,10 @@
     { id: 'extras', he: 'תוספות', extras: true },
   ];
 
+  // App service id → Tfilon service key (js/services.js). Services not listed
+  // here (e.g. omer) fall through to the smart-siddur assembler.
+  var SERVICE_TO_TFILON = { shacharit: 'shacharit', mincha: 'mincha', maariv: 'arvit' };
+
   var NUSACHIM = [
     { id: 'edot_mizrach', he: 'עדות המזרח' },
     { id: 'sfard', he: 'ספרד' },
@@ -301,11 +305,19 @@
     STATE.extra = null;
 
     var contentEl = document.getElementById('content');
-    var templateId = svc.template(STATE.nusach);
     var result;
     try {
-      var segs = window.SiduronAssembler.assemble(templateId, userContext(), STATE.dayFlags);
-      result = window.SiduronRender.render(segs);
+      // Main services (שחרית/מנחה/מעריב) for all nuschaot are sourced from the
+      // Tfilon corpus (js/services.js) — complete & correct per-nusach text.
+      // Other services (ספירת העומר) still use the smart-siddur assembler.
+      var tfilonSvc = SERVICE_TO_TFILON[id];
+      if (tfilonSvc && window.SiduronServices && window.SiduronServices.has(STATE.nusach, tfilonSvc)) {
+        result = window.SiduronServices.render(STATE.nusach, tfilonSvc, STATE.dayFlags);
+      } else {
+        var templateId = svc.template(STATE.nusach);
+        var segs = window.SiduronAssembler.assemble(templateId, userContext(), STATE.dayFlags);
+        result = window.SiduronRender.render(segs);
+      }
     } catch (e) {
       contentEl.innerHTML = '<div class="muted center">שגיאה בהרכבת התפילה: ' + window.SiduronRender.esc(String(e && e.message || e)) + '</div>';
       return;
