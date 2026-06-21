@@ -1,8 +1,9 @@
 name: ולידציה ופרסום לחנות אוצריא
 
-# מקפל את התוסף, מריץ את אותן בדיקות כמו חנות אוצריא, ומפרסם אוטומטית
-# כשגרסה חדשה נדחפת ל-master. גרסה שכבר קיימת בחנות לא תפורסם מחדש
-# (אלא אם force=true), אז דחיפה רגילה בטוחה.
+# מקפל את התוסף, מריץ את אותן בדיקות כמו חנות אוצריא, מפרסם אוטומטית
+# כשגרסה חדשה נדחפת ל-master, ויוצר GitHub Release עם קובץ ה-.otzplugin.
+# גרסה שכבר קיימת בחנות לא תפורסם מחדש (אלא אם force=true), אז דחיפה
+# רגילה בטוחה.
 
 on:
   push:
@@ -26,13 +27,19 @@ on:
         type: boolean
         default: false
 
+permissions:
+  contents: write           # נדרש כדי ליצור GitHub Release
+
 jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
+      # Action רשמי של אוצריא: ולידציה, קיפול ל-.otzplugin, ופרסום לחנות.
+      # אין שלב build — קבצי הנתונים (data/*.js) כבר מקומפלים ומוכנסים ל-git.
       - name: ולידציה, קיפול ופרסום
+        id: otzaria
         uses: Otzaria/otzaria-plugin-validator@v1
         with:
           path: .
@@ -42,3 +49,53 @@ jobs:
           force: ${{ github.event.inputs.force || false }}
           # לשחרור ראשון של תוסף חדש החנות דורשת צילומי מסך:
           # screenshots: 'screenshots/01.png,screenshots/02.png'
+
+      - name: קביעת גרסה ותג
+        id: meta
+        run: |
+          version="$(node -p "require('./manifest.json').version")"
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "גרסה לא תקינה ב-manifest.json: '$version' (צפוי X.Y.Z)" >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version"   >> "$GITHUB_OUTPUT"
+
+      - name: בדיקה אם ה-Release כבר קיים
+        id: release_check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.meta.outputs.tag }}
+        run: |
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "ה-Release $TAG כבר קיים - מדלג על יצירה"
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ה-Release $TAG עדיין לא קיים"
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: יצירת GitHub Release
+        if: steps.release_check.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: ${{ steps.meta.outputs.tag }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: ${{ steps.otzaria.outputs.plugin-file }}
+          body: |
+            ## סידורון — ${{ steps.meta.outputs.tag }}
+
+            סידור חול חכם בנוסחי עדות-המזרח, ספרד ואשכנז, עם מנוע הלכתי מלא
+            (מבוסס @hebcal/core) שמזהה אוטומטית תאריך, חגים, ומציג את הנוסח הנכון.
+
+            ### התקנה
+            הורד את קובץ ה-`.otzplugin` למטה, ובאוצריא:
+            **כלים → 🧩 תוספים → ⊕ התקן תוסף חדש**, ובחר את הקובץ.
+
+            ### Checksum
+            ```
+            SHA-256: ${{ steps.otzaria.outputs.sha256 }}
+            ```
