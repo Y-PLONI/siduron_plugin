@@ -50,7 +50,9 @@ check('birkat hamazon: NO al-hanissim on regular day', !/עַל הַנִּסִּ
 check('birkat hamazon: al-hanissim present on Chanukah', /הַנִּסִּים/.test(bmChan));
 
 // Static extras present.
-check('tefilat haderech renders', /יְהִי רָצוֹן/.test(renderExtra('tefilat_haderech', REGDAY).html));
+// Note: the passage's lead word is wrapped in <span class="s-firstword">…</span>
+// for display, so match an interior word rather than the opening "יְהִי רָצוֹן".
+check('tefilat haderech renders', /רָצוֹן/.test(renderExtra('tefilat_haderech', REGDAY).html));
 check('borei nefashot renders', /בּוֹרֵא נְפָשׁוֹת/.test(renderExtra('borei_nefashot', REGDAY).html));
 check('asher yatzar renders', renderExtra('asher_yatzar', REGDAY).html.length > 50);
 

@@ -59,12 +59,24 @@
     return null;
   }
 
-  function renderTextBlock(text) {
+  // Mirrors render.js: wrap the first visible word so it can be enlarged,
+  // keeping leading whitespace/HTML tags as a prefix to preserve tag nesting.
+  function wrapFirstWord(html) {
+    var m = /^(\s*(?:<[^>]+>\s*)*)([^\s<]+)/.exec(html);
+    if (!m) { return html; }
+    return m[1] + '<span class="s-firstword">' + m[2] + '</span>' + html.slice(m[0].length);
+  }
+
+  function renderTextBlock(text, leadWord) {
     var lines = String(text == null ? '' : text).split('\n');
     var out = [];
+    var didLead = false;
     for (var i = 0; i < lines.length; i++) {
       var t = lines[i].trim();
-      if (t) out.push('<div class="s-line">' + escKeepBold(t) + '</div>');
+      if (!t) { continue; }
+      var h = escKeepBold(t);
+      if (leadWord && !didLead) { h = wrapFirstWord(h); didLead = true; }
+      out.push('<div class="s-line">' + h + '</div>');
     }
     return out.join('');
   }
@@ -94,7 +106,7 @@
       } else if (s.kind === 'special' || s.kind === 'winter' || s.kind === 'summer') {
         out.push('<div class="s-special">' + renderTextBlock(s.text) + '</div>');
       } else {
-        out.push('<div class="s-seg">' + renderTextBlock(s.text) + '</div>');
+        out.push('<div class="s-seg">' + renderTextBlock(s.text, true) + '</div>');
       }
     }
     return { html: out.join('\n'), nav: nav };

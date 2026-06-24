@@ -20,7 +20,7 @@
     country: null,              // its country (Hebrew), or null
     withMinyan: true,
     purimDate: 'fourteenth',    // fourteenth | fifteenth | both
-    censorNames: false,
+    censorNames: true,
     fontSize: 22,
     fontFamily: '',             // '' = follow Otzaria's font; else a specific family
     textWidth: '760',           // content max-width in px, or 'full'
@@ -173,11 +173,31 @@
   }
 
   /* ────────────── Divine-name display ────────────── */
-  // Consonant skeleton of the Tetragrammaton (any nikud/te'amim between).
-  var TETRA_RE = /י[֑-ׇ]*ה[֑-ׇ]*ו[֑-ׇ]*ה/g;
+  // Consonant skeleton of the Tetragrammaton, allowing nikud/te'amim (Unicode
+  // Mn marks) between and after each letter — mirrors Otzaria's _holyName regex.
+  var TETRA_RE = /י\p{Mn}*ה\p{Mn}*ו\p{Mn}*ה\p{Mn}*/gu;
+  var MARK_RE = /\p{Mn}/u;          // a single combining (nikud/te'amim) mark
+  var HEB_LETTER_RE = /[א-ת]/;
+  // Otzaria's guard (_hasThreeContiguousHebrewLettersBeforeMatch): a skeleton
+  // match is the Name only when it is NOT buried inside a longer word — i.e.
+  // fewer than 3 contiguous Hebrew letters precede it (marks skipped). This
+  // still lets 1–2 letter prefixes through (לה׳, כה׳, ובה׳) while sparing words
+  // like "וַיַּגְבִּיהוּהוּ" where יהוה appears mid-word.
+  function hasThreeLettersBefore(text, start) {
+    var n = 0;
+    for (var i = start - 1; i >= 0; i--) {
+      var ch = text.charAt(i);
+      if (MARK_RE.test(ch)) { continue; }          // skip nikud/te'amim
+      if (HEB_LETTER_RE.test(ch)) { if (++n >= 3) { return true; } continue; }
+      break;                                        // space/tag/punctuation → word boundary
+    }
+    return false;
+  }
   function applyCensor(html) {
     if (!STATE.censorNames) return html;
-    return html.replace(TETRA_RE, 'ה׳');
+    return html.replace(TETRA_RE, function (m, offset, str) {
+      return hasThreeLettersBefore(str, offset) ? m : 'ה׳';
+    });
   }
 
   /* ────────────── Location (from Otzaria's selected city) ────────────── */

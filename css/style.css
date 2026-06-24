@@ -127,9 +127,12 @@ body { overflow: hidden; }
   font-size: .8em; font-weight: 700; color: var(--c-on-surface-variant);
   margin: 14px 0 2px; font-family: var(--ui-font);
 }
-.s-seg { margin-bottom: 10px; }
+.s-seg { margin-bottom: 18px; }
 .s-line { margin: 2px 0; }
 .s-line b, .prayer b { font-weight: 800; color: var(--c-primary); }
+/* Lead word of each passage — larger, bold, with a little breathing room below. */
+.s-firstword { font-size: 1.32em; font-weight: 700; line-height: 1; }
+.s-seg > .s-line:first-child { margin-bottom: 6px; }
 
 /* Accordions (optional / grouped content) */
 .s-optional, .s-group {
