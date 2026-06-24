@@ -9,7 +9,7 @@
   "entrypoint": "index.html",
   "icon": "icon/icon.png",
   "stability": "beta",
-  "minAppVersion": "0.9.5",
+  "minAppVersion": "0.9.95",
   "sdkVersion": "1.x",
   "permissions": [
     "app.info.read",
