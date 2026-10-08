@@ -754,6 +754,38 @@
     }
   }
 
+  /* ────────────── כיוון תפילה (תוסף נפרד) ────────────── */
+  // The header compass button opens the separate "כיוון תפילה" plugin via
+  // plugin.openOther (permission plugin.open_other, Otzaria 0.9.97+).
+  // Note: otzaria:// deep-links work only from outside the app, not from a
+  // plugin page, so they are not used here.
+  var KIVUN_ID = 'com.shiachrina.kivuntefila';
+  async function openKivunTefila() {
+    var err = null;
+    try {
+      var r = await window.Otzaria.call('plugin.openOther', { pluginId: KIVUN_ID });
+      if (!r || !r.success) err = (r && r.error) || { message: 'unknown' };
+    } catch (e) { err = e; }
+    if (!err) return;
+    var msg = err && typeof err === 'object' ? [err.code, err.message].filter(Boolean).join(' ') : String(err);
+    if (/not_found/.test(msg)) {
+      call('ui.showError', { message: 'תוסף "כיוון תפילה" אינו מותקן. ניתן להתקין אותו מחנות התוספים של אוצריא.' });
+    } else if (/permission|forbidden/i.test(msg)) {
+      call('ui.showError', { message: 'אין הרשאה לפתיחת תוסף אחר. פתחו: הגדרות → כלים → סידורון → ניהול הרשאות, ואשרו "פתיחת תוסף אחר".' });
+    } else {
+      call('ui.showError', { message: 'לא ניתן היה לפתוח את "כיוון תפילה"' + (msg ? ' (' + msg + ')' : '') + '.' });
+    }
+  }
+  // Hide the button only when we can positively tell the plugin isn't
+  // installed. If the host can't tell us (no API / no permission), keep it.
+  async function updateKivunButton() {
+    var btn = document.getElementById('btn-kivun');
+    if (!btn) return;
+    var list = await call('plugin.listInstalled');
+    if (!Array.isArray(list)) { btn.hidden = false; return; }
+    btn.hidden = !list.some(function (p) { return p && (p.pluginId === KIVUN_ID || p.id === KIVUN_ID); });
+  }
+
   /* ────────────── Panels ────────────── */
   function closeAllPanels() {
     var open = document.querySelectorAll('.panel.open');
@@ -799,6 +831,7 @@
 
   /* ────────────── Boot ────────────── */
   function wireUi() {
+    var kivunBtn = document.getElementById('btn-kivun'); if (kivunBtn) kivunBtn.onclick = openKivunTefila;
     document.getElementById('btn-zmanim').onclick = function () { togglePanel('panel-zmanim'); };
     document.getElementById('btn-nav').onclick = function () { renderNavList(); togglePanel('panel-nav'); };
     document.getElementById('btn-settings').onclick = function () { buildSettings(); togglePanel('panel-settings'); };
@@ -862,6 +895,7 @@
       renderTabs();
       buildSettings();
       openService(STATE.service || 'shacharit');
+      updateKivunButton();
     } catch (e) {
       document.getElementById('content').innerHTML =
         '<div class="muted center">שגיאה בטעינת הסידור: ' + window.SiduronRender.esc(String(e && e.message || e)) + '</div>';

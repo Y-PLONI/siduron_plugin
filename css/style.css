@@ -55,6 +55,7 @@ body { overflow: hidden; }
   transition: background .15s;
 }
 .tool-btn svg { width: 21px; height: 21px; }
+.tool-btn[hidden] { display: none; }
 .tool-btn:hover { background: var(--c-primary-subtle); color: var(--c-on-surface); }
 
 .header-date { display: flex; align-items: center; gap: 10px; margin: 0 0 2px; }
