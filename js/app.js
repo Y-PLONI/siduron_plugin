@@ -19,6 +19,7 @@
     city: null,                 // selected city name (from Otzaria's calendar), or null
     country: null,              // its country (Hebrew), or null
     withMinyan: true,
+    teamim: false,              // פסוקי דזמרא עם טעמי המקרא (אשכנז)
     purimDate: 'fourteenth',    // fourteenth | fifteenth | both
     divineName: 'yy',           // source | hashem | yy | yedovid (see applyDivineName)
     fontSize: 22,
@@ -476,6 +477,14 @@
       } else if (shabbatSvc && S && S.hasShabbat(STATE.nusach, shabbatSvc)) {
         result = S.renderShabbat(STATE.nusach, shabbatSvc, flags);
       } else if (tfilonSvc && window.SiduronServices && window.SiduronServices.has(STATE.nusach, tfilonSvc)) {
+        // טעמי המקרא לפסוקי דזמרא: טוענים ברקע מאוצריא, ומרנדרים שוב כשהפסוקים הגיעו.
+        var TZ = window.SiduronTeamim;
+        if (TZ && STATE.teamim && TZ.isActive(STATE.nusach, tfilonSvc)) {
+          TZ.prefetch(STATE.nusach, tfilonSvc).then(function (changed) {
+            if (changed && STATE.service === id) openService(id);
+            if (!changed) buildSettings();
+          });
+        }
         result = window.SiduronServices.render(STATE.nusach, tfilonSvc, flags);
       } else {
         var templateId = svc.template(STATE.nusach);
@@ -664,6 +673,24 @@
     });
     // Toggles
     setToggle('set-minyan', STATE.withMinyan, function (v) { STATE.withMinyan = v; storageSet('withMinyan', v); rerender(); });
+    // פסוקי דזמרא עם טעמים — רלוונטי לנוסח אשכנז בלבד (בשלב זה).
+    setToggle('set-teamim', STATE.teamim, function (v) {
+      STATE.teamim = v; storageSet('teamim', v);
+      if (window.SiduronTeamim) { window.SiduronTeamim.setEnabled(v); if (v) window.SiduronTeamim.retry(); }
+      buildSettings();
+      if (STATE.service) openService(STATE.service);
+    });
+    var tn = document.getElementById('set-teamim-note');
+    if (tn) {
+      var tOk = !STATE.permissions || STATE.permissions.indexOf('library.content.read') >= 0;
+      var failed = window.SiduronTeamim ? window.SiduronTeamim.failedBooks() : [];
+      var msg = 'הפסוקים נלקחים מספריית אוצריא · נוסח אשכנז בלבד';
+      if (STATE.teamim && STATE.nusach !== 'ashkenaz') msg = 'פעיל בנוסח אשכנז בלבד — הנוסח הנוכחי יוצג ללא טעמים';
+      else if (STATE.teamim && !tOk) msg = 'נדרשת הרשאה: הגדרות → כלים → סידורון → ניהול הרשאות → \"קריאת תוכן ספרים\"';
+      else if (STATE.teamim && failed.length) msg = 'לא ניתן היה לטעון מאוצריא את: ' + failed.join(', ') + ' — הטקסט מוצג ללא טעמים';
+      tn.textContent = msg;
+      tn.classList.toggle('warn', STATE.teamim && (!tOk || failed.length > 0 || STATE.nusach !== 'ashkenaz'));
+    }
     var fv = document.getElementById('fs-val'); if (fv) fv.textContent = String(STATE.fontSize);
   }
   function setToggle(id, on, onChange) {
@@ -771,13 +798,15 @@
   async function loadSettings() {
     // 'isInIsrael' is intentionally absent — it's derived from Otzaria's
     // selected city (see refreshLocation), not stored as a manual preference.
-    var keys = ['nusach', 'gender', 'withMinyan', 'purimDate', 'divineName', 'fontSize', 'fontFamily', 'textWidth', 'service'];
+    var keys = ['nusach', 'gender', 'withMinyan', 'teamim', 'purimDate', 'divineName', 'fontSize', 'fontFamily', 'textWidth', 'service'];
     for (var i = 0; i < keys.length; i++) {
       var k = keys[i]; var v = await storageGet(k);
       if (v == null) continue;
       if (k === 'fontSize') STATE.fontSize = v;
       else STATE[k] = v;
     }
+    STATE.teamim = STATE.teamim === true;
+    if (window.SiduronTeamim) window.SiduronTeamim.setEnabled(STATE.teamim);
     if (!isDivineName(STATE.divineName)) STATE.divineName = null;
     if (!STATE.divineName) {
       // No style stored yet. Honour the old boolean setting (censorNames) if it

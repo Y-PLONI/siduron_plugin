@@ -15,6 +15,7 @@
     "app.info.read",
     "calendar.read",
     "settings.read",
+    "library.content.read",
     "plugin.storage.read",
     "plugin.storage.write",
     "ui.feedback",
