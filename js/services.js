@@ -354,6 +354,8 @@
     var d = data();
     var segs = (d && d[nusach] && d[nusach][service]);
     if (!segs || !segs.length) return null;   // caller falls back
+    // פסוקי דזמרא עם טעמים (אם הוגדר) — מחליף את הקטעים בפסוקים מאוצריא.
+    if (global.SiduronTeamim) segs = global.SiduronTeamim.transform(nusach, service, segs);
     return renderSegs(segs, dayFlags);
   }
 
