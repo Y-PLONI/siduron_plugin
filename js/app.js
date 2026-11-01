@@ -119,6 +119,21 @@
     try { var r = await window.Otzaria.call(method, params || {}); return r && r.success ? r.data : null; }
     catch (e) { return null; }
   }
+  // Like call(), but keeps the host's error instead of swallowing it — for
+  // actions whose failure the user must see. Resolves to { data } or { error }.
+  async function callWithError(method, params) {
+    try {
+      var r = await window.Otzaria.call(method, params || {});
+      return r && r.success ? { data: r.data } : { error: (r && r.error) || { message: 'unknown' } };
+    } catch (e) { return { error: e }; }
+  }
+  // Flatten a host error ({ code, message }, a thrown Error or a string) into
+  // one string the error-message mappers can pattern-match.
+  function rpcErrorText(err) {
+    return err && typeof err === 'object'
+      ? [err.code, err.message].filter(Boolean).join(' ')
+      : String(err || '');
+  }
   async function storageGet(key) { var v = await call('storage.get', { key: key }); return v; }
   function storageSet(key, value) { if (hasOtzaria()) window.Otzaria.call('storage.set', { key: key, value: value }); }
 
@@ -716,9 +731,7 @@
   // that was already granted while the real cause — no Desktop folder, a
   // OneDrive-redirected desktop, an app too old for the API — stayed hidden.
   function shortcutErrorMessage(err) {
-    var msg = err && typeof err === 'object'
-      ? [err.code, err.message].filter(Boolean).join(' ')
-      : String(err || '');
+    var msg = rpcErrorText(err);
     if (/permission_denied|create_shortcut/.test(msg)) {
       return 'אין הרשאה ליצירת קיצור דרך. פתחו: הגדרות → כלים → סידורון → ניהול הרשאות, ' +
         'ואשרו "יצירת קיצור דרך". אם ההרשאה כבר מסומנת — כבו והדליקו אותה כדי לשמור אותה מחדש.';
@@ -738,12 +751,8 @@
     if (btn) btn.disabled = true;
     // Deliberately NOT via call(): that helper swallows the host's error and
     // returns null, which is exactly what hid the real failure from users.
-    var res = null, err = null;
-    try {
-      var r = await window.Otzaria.call('shortcut.create', { label: 'סידורון', location: 'desktop' });
-      if (r && r.success) res = r.data;
-      else err = (r && r.error) || { message: 'unknown' };
-    } catch (e) { err = e; }
+    var out = await callWithError('shortcut.create', { label: 'סידורון', location: 'desktop' });
+    var res = out.data, err = out.error;
     if (btn) btn.disabled = false;
     if (res && res.created) {
       call('ui.showSuccess', { message: 'נוצר קיצור דרך לסידורון בשולחן העבודה.' });
@@ -756,34 +765,64 @@
 
   /* ────────────── כיוון תפילה (תוסף נפרד) ────────────── */
   // The header compass button opens the separate "כיוון תפילה" plugin via
-  // plugin.openOther (permission plugin.open_other, Otzaria 0.9.97+).
-  // Note: otzaria:// deep-links work only from outside the app, not from a
-  // plugin page, so they are not used here.
+  // plugin.openOther (permission plugin.open_other; it and plugin.listInstalled
+  // exist from Otzaria 0.9.97 — the manifest's minAppVersion).
+  // Not an otzaria://open/plugin/<id> link: those are clickable in plugin pages
+  // only from 0.9.97+769 and give the page nothing back — openOther answers
+  // with an error the click can explain (not installed / no permission).
   var KIVUN_ID = 'com.shiachrina.kivuntefila';
-  async function openKivunTefila() {
-    var err = null;
-    try {
-      var r = await window.Otzaria.call('plugin.openOther', { pluginId: KIVUN_ID });
-      if (!r || !r.success) err = (r && r.error) || { message: 'unknown' };
-    } catch (e) { err = e; }
-    if (!err) return;
-    var msg = err && typeof err === 'object' ? [err.code, err.message].filter(Boolean).join(' ') : String(err);
+  var KIVUN_LABEL = 'כיוון תפילה';
+  // The host answers `error.not_found` when the plugin isn't installed and
+  // `permission_denied` (Permission denied: plugin.open_other) without the grant.
+  function kivunErrorMessage(err) {
+    var msg = rpcErrorText(err);
     if (/not_found/.test(msg)) {
-      call('ui.showError', { message: 'תוסף "כיוון תפילה" אינו מותקן. ניתן להתקין אותו מחנות התוספים של אוצריא.' });
-    } else if (/permission|forbidden/i.test(msg)) {
-      call('ui.showError', { message: 'אין הרשאה לפתיחת תוסף אחר. פתחו: הגדרות → כלים → סידורון → ניהול הרשאות, ואשרו "פתיחת תוסף אחר".' });
-    } else {
-      call('ui.showError', { message: 'לא ניתן היה לפתוח את "כיוון תפילה"' + (msg ? ' (' + msg + ')' : '') + '.' });
+      return 'תוסף "כיוון תפילה" אינו מותקן. ניתן להתקין אותו מחנות התוספים של אוצריא.';
     }
+    if (/permission_denied|open_other/.test(msg)) {
+      return 'אין הרשאה לפתיחת תוסף אחר. פתחו: הגדרות → כלים → סידורון → ניהול הרשאות, ' +
+        'ואשרו "פתיחת תוסף אחר".';
+    }
+    return 'לא ניתן היה לפתוח את "כיוון תפילה"' + (msg ? ' (' + msg + ')' : '') + '.';
   }
-  // Hide the button only when we can positively tell the plugin isn't
-  // installed. If the host can't tell us (no API / no permission), keep it.
+  async function openKivunTefila() {
+    var btn = document.getElementById('btn-kivun');
+    if (btn) btn.disabled = true;                 // a double click opens it once
+    var err = (await callWithError('plugin.openOther', { pluginId: KIVUN_ID })).error;
+    if (btn) btn.disabled = false;
+    if (!err) return;
+    // Uninstalled since the last check — stop offering a button that can't work.
+    if (btn && /not_found/.test(rpcErrorText(err))) btn.hidden = true;
+    call('ui.showError', { message: kivunErrorMessage(err) });
+  }
+  // The button starts hidden (index.html), so the many users without the plugin
+  // never see it flash in. It is shown when the plugin is installed — or when
+  // the host can't tell us, and then a click reports the real reason. A missing
+  // grant keeps it visible with a hint; the grant list is asked fresh each time,
+  // since plugin.boot's copy goes stale when the user toggles it (no reload).
+  // There is no install/uninstall event, so this re-runs whenever the page is
+  // shown again; kivunSeq drops answers that arrive after a newer check.
+  // Nothing runs before boot(): until plugin.boot the SDK rejects every call
+  // ("not ready"), which would read as "can't tell" and flash the button in.
+  var kivunSeq = 0, kivunReady = false;
   async function updateKivunButton() {
     var btn = document.getElementById('btn-kivun');
-    if (!btn) return;
-    var list = await call('plugin.listInstalled');
-    if (!Array.isArray(list)) { btn.hidden = false; return; }
-    btn.hidden = !list.some(function (p) { return p && (p.pluginId === KIVUN_ID || p.id === KIVUN_ID); });
+    if (!btn || !kivunReady || !hasOtzaria()) return;
+    var seq = ++kivunSeq;
+    var res = await Promise.all([call('plugin.listInstalled'), call('app.getGrantedPermissions')]);
+    if (seq !== kivunSeq) return;
+    var list = res[0], granted = res[1] && res[1].permissions;
+    // 0.9.97+743 lists plugins as { name, version } only — no pluginId to match,
+    // so such a list counts as "can't tell", not as "not installed".
+    var known = Array.isArray(list) &&
+      (list.length === 0 || list.some(function (p) { return p && typeof p.pluginId === 'string'; }));
+    btn.hidden = known && !list.some(function (p) { return p && p.pluginId === KIVUN_ID; });
+    if (Array.isArray(granted)) STATE.permissions = granted;   // keep the shortcut hint fresh too
+    var label = !Array.isArray(granted) || granted.indexOf('plugin.open_other') >= 0
+      ? KIVUN_LABEL
+      : KIVUN_LABEL + ' — נדרשת הרשאה: "פתיחת תוסף אחר"';
+    btn.title = label;
+    btn.setAttribute('aria-label', label);
   }
 
   /* ────────────── Panels ────────────── */
@@ -832,6 +871,8 @@
   /* ────────────── Boot ────────────── */
   function wireUi() {
     var kivunBtn = document.getElementById('btn-kivun'); if (kivunBtn) kivunBtn.onclick = openKivunTefila;
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) updateKivunButton(); });
+    window.addEventListener('focus', updateKivunButton);
     document.getElementById('btn-zmanim').onclick = function () { togglePanel('panel-zmanim'); };
     document.getElementById('btn-nav').onclick = function () { renderNavList(); togglePanel('panel-nav'); };
     document.getElementById('btn-settings').onclick = function () { buildSettings(); togglePanel('panel-settings'); };
@@ -884,6 +925,8 @@
 
   async function boot() {
     try {
+      kivunReady = true;
+      updateKivunButton();          // not awaited — runs alongside the data load
       await loadSettings();
       applyFontSize(STATE.fontSize);
       applyFont();
@@ -895,7 +938,6 @@
       renderTabs();
       buildSettings();
       openService(STATE.service || 'shacharit');
-      updateKivunButton();
     } catch (e) {
       document.getElementById('content').innerHTML =
         '<div class="muted center">שגיאה בטעינת הסידור: ' + window.SiduronRender.esc(String(e && e.message || e)) + '</div>';
@@ -959,6 +1001,8 @@
       yomtovServiceKey: yomtovServiceKey,
       pickServiceByTime: pickServiceByTime,
       shortcutErrorMessage: shortcutErrorMessage,
+      kivunErrorMessage: kivunErrorMessage,
+      updateKivunButton: updateKivunButton,
       maarivNightLabel: maarivNightLabel,
       setPrayerDays: setPrayerDays,
       flagsForService: flagsForService,
