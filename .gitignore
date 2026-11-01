@@ -3,3 +3,7 @@ tfilon.tfilon_38_1734630-1/*
 references/
 preview.html
 .DS_Store
+
+# חבילות ארוזות נבנות ב-CI (publish.yml) ומצורפות ל-GitHub Release
+*.otzplugin
+release/

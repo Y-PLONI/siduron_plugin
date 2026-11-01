@@ -55,7 +55,13 @@ body { overflow: hidden; }
   transition: background .15s;
 }
 .tool-btn svg { width: 21px; height: 21px; }
+.tool-btn[hidden] { display: none; }
 .tool-btn:hover { background: var(--c-primary-subtle); color: var(--c-on-surface); }
+/* Phones: up to four tool buttons share the row with the date + season. */
+@media (max-width: 420px) {
+  .header-tools { gap: 2px; }
+  .tool-btn { width: 34px; height: 34px; }
+}
 
 .header-date { display: flex; align-items: center; gap: 10px; margin: 0 0 2px; }
 .hdr-date { font-size: 1.05rem; font-weight: 600; }

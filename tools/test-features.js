@@ -7,6 +7,8 @@
  *   5. מודל היום לערבית    — Otzaria's date rolls over at שקיעה; ערבית follows the night
  *   6. תשעה באב            — no תחנון and no אבינו מלכנו (also fixes mincha on any
  *                            day without תחנון)
+ *   7. כיוון תפילה         — the compass button opens the separate plugin, shows
+ *                            only when it's installed, and explains failures
  *
  * Run: node tools/test-features.js
  */
@@ -400,6 +402,195 @@ setTimeout(async function () {
   btnSettings.onclick.call(btnSettings);
   check('with the grant present the hint goes back to normal',
     !doc.getElementById('set-shortcut-note').classList.contains('warn'));
+
+  section('7. כיוון תפילה — פתיחת התוסף הנפרד');
+  const KIVUN = 'com.shiachrina.kivuntefila';
+  const kBtn = doc.getElementById('btn-kivun');
+  // This page booted standalone (no host) — nothing could be opened from it.
+  check('standalone preview keeps the button hidden after boot', kBtn.hidden === true);
+  check('the button starts hidden (no flash for users without the plugin)',
+    /<button[^>]*id="btn-kivun"[^>]*\shidden/.test(fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8')));
+  // jsdom doesn't load css/style.css, so check the rule itself: .tool-btn sets
+  // display:inline-flex, which beats the UA's [hidden] { display: none }.
+  check('a hidden tool button is really hidden (CSS rule present)',
+    /\.tool-btn\[hidden\]\s*\{\s*display:\s*none/.test(fs.readFileSync(path.join(ROOT, 'css/style.css'), 'utf8')));
+  check('manifest declares plugin.open_other', manifest.permissions.indexOf('plugin.open_other') >= 0);
+  check('manifest declares app.info.read (listInstalled / getGrantedPermissions)',
+    manifest.permissions.indexOf('app.info.read') >= 0);
+  const cmpVer = (a, b) => {
+    const x = a.split('.').map(Number), y = b.split('.').map(Number);
+    for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (d) return d; }
+    return 0;
+  };
+  check('minAppVersion covers plugin.openOther / listInstalled (0.9.97)',
+    cmpVer(manifest.minAppVersion, '0.9.97') >= 0, manifest.minAppVersion);
+
+  check('not installed → offers the store',
+    /אינו מותקן/.test(I.kivunErrorMessage({ code: 'error.not_found', message: 'plugin not installed: ' + KIVUN })));
+  check('missing grant → names the permissions screen and the permission',
+    /ניהול הרשאות/.test(I.kivunErrorMessage({ code: 'permission_denied', message: 'Permission denied: plugin.open_other' })) &&
+    /פתיחת תוסף אחר/.test(I.kivunErrorMessage({ code: 'permission_denied', message: 'Permission denied: plugin.open_other' })));
+  check('another failure keeps the host message and blames nobody',
+    /boom/.test(I.kivunErrorMessage({ code: 'error.internal', message: 'boom' })) &&
+    !/הרשאה|אינו מותקן/.test(I.kivunErrorMessage({ code: 'error.internal', message: 'boom' })));
+  check('a thrown Error is reported too', /lost/.test(I.kivunErrorMessage(new win.Error('bridge lost'))));
+
+  // A scriptable host: what listInstalled / getGrantedPermissions / openOther answer.
+  let host;
+  const kCalls = [];
+  win.Otzaria = {
+    call: (m, p) => {
+      kCalls.push([m, p]);
+      if (m === 'plugin.listInstalled') {
+        return Promise.resolve(host.list === null
+          ? { success: false, error: { code: 'error.unknown_method', message: 'Unknown action in plugin: listInstalled' } }
+          // 0.9.97+743 answered { name, version } only — no pluginId.
+          : { success: true, data: host.list.map(id => host.noIds ? { name: id, version: '1.0.0' } : { pluginId: id, name: id, enabled: true }) });
+      }
+      if (m === 'app.getGrantedPermissions') return Promise.resolve({ success: true, data: { permissions: host.granted } });
+      if (m === 'plugin.openOther') return host.open(p);
+      return Promise.resolve({ success: true, data: null });
+    },
+    on() {}, off() {},
+  };
+  const tick = () => new Promise(r => setTimeout(r, 20));
+  const ALL = ['app.info.read', 'plugin.open_other'];
+
+  host = { list: ['com.other.plugin'], granted: ALL };
+  await I.updateKivunButton(); await tick();
+  check('hidden when the plugin is not installed', kBtn.hidden === true);
+
+  host = { list: ['com.other.plugin', KIVUN], granted: ALL };
+  await I.updateKivunButton(); await tick();
+  check('shown when the plugin is installed', kBtn.hidden === false);
+  check('plain label with the grant', kBtn.title === 'כיוון תפילה' && kBtn.getAttribute('aria-label') === 'כיוון תפילה');
+
+  host = { list: [KIVUN], granted: ['app.info.read'] };
+  await I.updateKivunButton(); await tick();
+  check('still shown without the grant (a click explains what to do)', kBtn.hidden === false);
+  check('the missing grant is hinted in the tooltip', /פתיחת תוסף אחר/.test(kBtn.title) && /פתיחת תוסף אחר/.test(kBtn.getAttribute('aria-label')));
+
+  host = { list: null, granted: null };
+  await I.updateKivunButton(); await tick();
+  check('shown when the host cannot list plugins (unknown ≠ not installed)', kBtn.hidden === false);
+
+  host = { list: [], granted: ALL };
+  await I.updateKivunButton(); await tick();
+  host = { list: ['com.moshenahari.siduron', 'com.other.plugin'], granted: ALL, noIds: true };
+  await I.updateKivunButton(); await tick();
+  check('0.9.97+743 (list without pluginId) counts as "can\'t tell" → shown', kBtn.hidden === false);
+
+  check('a fresh grant list refreshes STATE.permissions (shortcut hint too)',
+    win.SiduronApp.state.permissions.indexOf('plugin.open_other') >= 0);
+
+  // Installed after boot: the page becoming visible again re-checks.
+  host = { list: [], granted: ALL };
+  await I.updateKivunButton(); await tick();
+  check('hidden again after uninstall', kBtn.hidden === true);
+  host = { list: [KIVUN], granted: ALL };
+  Object.defineProperty(doc, 'hidden', { value: false, configurable: true });   // jsdom reports hidden
+  doc.dispatchEvent(new win.Event('visibilitychange')); await tick();
+  check('visibilitychange re-checks (install while the page was open)', kBtn.hidden === false);
+  host = { list: [], granted: ALL };
+  win.dispatchEvent(new win.Event('focus')); await tick();
+  check('focus re-checks too', kBtn.hidden === true);
+
+  // Out-of-order answers: an older, slower check must not overwrite a newer one.
+  let releaseSlow;
+  const slow = new Promise(r => { releaseSlow = r; });
+  const realCall = win.Otzaria.call;
+  win.Otzaria.call = (m, p) => (m === 'plugin.listInstalled' && host.slow)
+    ? slow.then(() => ({ success: true, data: [] }))
+    : realCall(m, p);
+  host = { list: [KIVUN], granted: ALL, slow: true };
+  const older = I.updateKivunButton();
+  host = { list: [KIVUN], granted: ALL, slow: false };
+  await I.updateKivunButton();
+  releaseSlow(); await older; await tick();
+  check('a stale (older) answer does not override the newer check', kBtn.hidden === false);
+  win.Otzaria.call = realCall;
+
+  // Click → plugin.openOther with our id; success shows nothing.
+  host = { list: [KIVUN], granted: ALL, open: () => Promise.resolve({ success: true, data: true }) };
+  kCalls.length = 0;
+  await kBtn.onclick.call(kBtn); await tick();
+  const openCall = kCalls.find(c => c[0] === 'plugin.openOther');
+  check('click calls plugin.openOther with the kivun-tefila id', !!openCall && openCall[1].pluginId === KIVUN);
+  check('success shows no error', !kCalls.some(c => c[0] === 'ui.showError'));
+
+  // Permission denied → actionable message, button stays.
+  host.open = () => Promise.resolve({ success: false, error: { code: 'permission_denied', message: 'Permission denied: plugin.open_other' } });
+  kCalls.length = 0;
+  await kBtn.onclick.call(kBtn); await tick();
+  let kErr = kCalls.filter(c => c[0] === 'ui.showError').pop();
+  check('permission denial is shown with the permissions screen', !!kErr && /ניהול הרשאות/.test(kErr[1].message), kErr && kErr[1].message);
+  check('permission denial keeps the button', kBtn.hidden === false);
+
+  // Uninstalled between the check and the click → message + the button goes away.
+  host.open = () => Promise.resolve({ success: false, error: { code: 'error.not_found', message: 'plugin not installed: ' + KIVUN } });
+  kCalls.length = 0;
+  await kBtn.onclick.call(kBtn); await tick();
+  kErr = kCalls.filter(c => c[0] === 'ui.showError').pop();
+  check('not_found is shown as "not installed"', !!kErr && /אינו מותקן/.test(kErr[1].message));
+  check('not_found hides the button', kBtn.hidden === true);
+
+  // A bridge that throws instead of answering.
+  kBtn.hidden = false;
+  host.open = () => Promise.reject(new win.Error('bridge lost'));
+  kCalls.length = 0;
+  await kBtn.onclick.call(kBtn); await tick();
+  kErr = kCalls.filter(c => c[0] === 'ui.showError').pop();
+  check('a thrown bridge error still reaches the user', !!kErr && /bridge lost/.test(kErr[1].message));
+
+  // A double click while the host is still opening the plugin opens it once.
+  let releaseOpen;
+  host.open = () => new Promise(r => { releaseOpen = () => r({ success: true, data: true }); });
+  kCalls.length = 0;
+  kBtn.click();
+  check('the button is disabled while opening', kBtn.disabled === true);
+  kBtn.click();
+  releaseOpen(); await tick();
+  check('a double click calls plugin.openOther once', kCalls.filter(c => c[0] === 'plugin.openOther').length === 1);
+  check('the button is enabled again afterwards', kBtn.disabled === false);
+
+  // Before plugin.boot the SDK rejects every call ("not ready"). A focus in
+  // that window must not read as "can't tell" and flash the button in.
+  {
+    const dom2 = new JSDOM(fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8'),
+      { runScripts: 'dangerously', url: 'file://' + ROOT + '/index.html' });
+    const w2 = dom2.window, d2 = w2.document;
+    let booted = false, bootHandler = null;
+    const c2 = [];
+    w2.Otzaria = {
+      call: (m, p) => {
+        c2.push(m);
+        if (!booted) return Promise.reject(new w2.Error('Otzaria SDK not ready yet'));
+        if (m === 'plugin.listInstalled') return Promise.resolve({ success: true, data: [{ pluginId: KIVUN }] });
+        if (m === 'app.getGrantedPermissions') return Promise.resolve({ success: true, data: { permissions: ALL } });
+        return Promise.resolve({ success: true, data: null });
+      },
+      on: (topic, fn) => { if (topic === 'plugin.boot') bootHandler = fn; },
+      off() {},
+    };
+    ['vendor/hebcal.js', 'data/siddur-data.js', 'data/services-data.js', 'data/shabbat-data.js',
+      'data/extras-data.js', 'data/locations.js', 'js/calendar.js', 'js/assembler.js', 'js/render.js',
+      'js/services.js', 'js/extras.js', 'js/app.js'].forEach(f => {
+        const s = d2.createElement('script');
+        s.textContent = fs.readFileSync(path.join(ROOT, f), 'utf8');
+        d2.body.appendChild(s);
+      });
+    await tick();
+    const b2 = d2.getElementById('btn-kivun');
+    w2.dispatchEvent(new w2.Event('focus')); await tick();
+    check('before plugin.boot: no host check is attempted', c2.indexOf('plugin.listInstalled') < 0, c2.join(','));
+    check('before plugin.boot: the button stays hidden', b2.hidden === true);
+    booted = true;
+    check('the page registered a plugin.boot handler', typeof bootHandler === 'function');
+    if (bootHandler) bootHandler({ permissions: ALL, app: { platform: 'windows' } });
+    await new Promise(r => setTimeout(r, 200));
+    check('after plugin.boot: installed plugin → button shown', b2.hidden === false);
+    w2.close();
+  }
 
   check('no runtime errors in the UI', errors.length === 0, errors[0]);
   console.log('\n=== FEATURES: ' + (fail === 0 ? 'PASS' : 'FAIL') + ' (' + pass + ' passed, ' + fail + ' failed) ===');
