@@ -8,13 +8,20 @@
  * ממשק:
  *   SiduronTeamim.setEnabled(bool)
  *   SiduronTeamim.isActive(nusach, service)  — האם יש מיפוי לשירות הזה
- *   SiduronTeamim.prefetch(nusach, service)  — Promise<boolean> (true = נטענו פסוקים חדשים)
+ *   SiduronTeamim.prefetch(nusach, service)  — Promise<boolean> (true = יש פסוקים שלא היו
+ *                                              בעת הרינדור הקודם: נטענו מהספרייה, או מהמטמון
+ *                                              השמור בפעם הראשונה בהפעלה — צריך לרנדר מחדש)
  *   SiduronTeamim.transform(nusach, service, segs) — מחזיר רשימת קטעים עם הטקסט המוחלף
+ *
+ * הטקסט נקרא עם rawDivineNames, כלומר שם ה' כפי שנשמר (יְהֹוָה) ולא לפי הגדרת
+ * התצוגה של אוצריא — כך הגדרת "תצוגת שם ה'" של התוסף (applyDivineName) חלה גם
+ * על הפסוקים, והמטמון אינו תלוי בהגדרה שהייתה בזמן הקריאה.
  */
 (function (global) {
   'use strict';
 
-  var CACHE_KEY = 'teamimCacheV1';
+  // V2: מ-V1 נשמרו פסוקים עם שמות הקודש לפי הגדרת אוצריא (בלי rawDivineNames).
+  var CACHE_KEY = 'teamimCacheV2';
   var CHUNK = 5000;
   var MAX_CHUNKS = 600;              // רשת ביטחון מפני לולאה אינסופית
 
@@ -32,12 +39,15 @@
     catch (e) { return null; }
   }
 
+  // מחזיר true רק בטעינה הראשונה, כשבאחסון היו פסוקים — הרינדור הראשון של
+  // התפילה קדם לה ולכן הוצג בלי טעמים.
   async function loadCache() {
-    if (cacheLoaded) return;
+    if (cacheLoaded) return false;
     cacheLoaded = true;
     var v = await call('storage.get', { key: CACHE_KEY });
     if (v && typeof v === 'object') cache = v;
     else if (typeof v === 'string') { try { cache = JSON.parse(v) || {}; } catch (e) { cache = {}; } }
+    return Object.keys(cache).length > 0;
   }
   function saveCache() {
     if (hasOtzaria()) global.Otzaria.call('storage.set', { key: CACHE_KEY, value: cache });
@@ -97,7 +107,7 @@
   async function readWholeBook(title) {
     var text = '', offset = 0;
     for (var i = 0; i < MAX_CHUNKS; i++) {
-      var chunk = await call('library.getBookContent', { bookId: title, offset: offset, limit: CHUNK });
+      var chunk = await call('library.getBookContent', { bookId: title, offset: offset, limit: CHUNK, rawDivineNames: true });
       if (chunk && typeof chunk === 'object') chunk = chunk.content || chunk.text || '';
       if (typeof chunk !== 'string' || !chunk.length) break;
       text += chunk;
@@ -142,9 +152,9 @@
     if (inflight[k]) return inflight[k];
     inflight[k] = (async function () {
       try {
-        await loadCache();
+        var fromStorage = await loadCache();
         var need = neededVerses(entries).filter(function (v) { return !cache[key(v)]; });
-        if (!need.length) return false;
+        if (!need.length) return fromStorage;
         var wanted = {}, books = [];
         need.forEach(function (v) { wanted[key(v)] = true; });
         need.forEach(function (v) { if (books.indexOf(v.book) < 0) books.push(v.book); });
@@ -158,7 +168,7 @@
           else bookState[b] = 'failed';
         }
         if (changed) saveCache();
-        return changed;
+        return changed || fromStorage;
       } finally { delete inflight[k]; }
     })();
     return inflight[k];
@@ -166,7 +176,9 @@
 
   // פסוקי הקטע מתוך המטמון; null אם חסר פסוק כלשהו (אז נשאר הטקסט המקורי).
   function buildLines(entry, originalText) {
-    var origSentences = String(originalText).split(/\n+/).join(' ').split(/(?<=[:.])\s+/);
+    // פיצול למשפטים אחרי ':' או '.' — בלי lookbehind, שאינו נתמך ב-WebKit ישן
+    // (שגיאת תחביר שם הייתה מונעת את טעינת הקובץ כולו).
+    var origSentences = String(originalText).split(/\n+/).join(' ').replace(/([:.])\s+/g, '$1\n').split('\n');
     var out = [];
     for (var li = 0; li < entry.lines.length; li++) {
       var parts = [];

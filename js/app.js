@@ -459,7 +459,9 @@
 
   function serviceById(id) { for (var i = 0; i < SERVICES.length; i++) if (SERVICES[i].id === id) return SERVICES[i]; return null; }
 
-  function openService(id) {
+  // keepScroll: the same service re-rendered in place (e.g. the te'amim just
+  // arrived) — keep the reader where they are instead of jumping to the top.
+  function openService(id, keepScroll) {
     var svc = serviceById(id);
     // Fall back when the requested service isn't available today (e.g. the
     // Omer tab on a non-Omer day, restored from saved state).
@@ -495,9 +497,11 @@
         // טעמי המקרא לפסוקי דזמרא: טוענים ברקע מאוצריא, ומרנדרים שוב כשהפסוקים הגיעו.
         var TZ = window.SiduronTeamim;
         if (TZ && STATE.teamim && TZ.isActive(STATE.nusach, tfilonSvc)) {
+          var failedBefore = TZ.failedBooks().join('|');
           TZ.prefetch(STATE.nusach, tfilonSvc).then(function (changed) {
-            if (changed && STATE.service === id) openService(id);
-            if (!changed) buildSettings();
+            if (changed && STATE.teamim && STATE.service === id) openService(id, true);
+            // ההערה בהגדרות מציגה את הספרים שנכשלו — לבנות מחדש רק כשהרשימה השתנתה.
+            if (TZ.failedBooks().join('|') !== failedBefore) buildSettings();
           });
         }
         result = window.SiduronServices.render(STATE.nusach, tfilonSvc, flags);
@@ -513,9 +517,12 @@
     STATE.nav = result.nav;
     var night = id === 'maariv' ? maarivNightLabel() : '';
     setTitle(night ? svc.he + ' · ' + night : svc.he);
-    contentEl.innerHTML = '<div class="prayer fade-in">' + applyDivineName(result.html) + '</div>';
-    contentEl.scrollTop = 0;
-    var sc = document.getElementById('reader-scroll'); if (sc) sc.scrollTop = 0;
+    var sc = document.getElementById('reader-scroll');
+    var contentTop = keepScroll ? contentEl.scrollTop : 0;
+    var readerTop = keepScroll && sc ? sc.scrollTop : 0;
+    contentEl.innerHTML = '<div class="prayer' + (keepScroll ? '' : ' fade-in') + '">' + applyDivineName(result.html) + '</div>';
+    contentEl.scrollTop = contentTop;
+    if (sc) sc.scrollTop = readerTop;
     renderNavList();
   }
 
@@ -688,7 +695,8 @@
     });
     // Toggles
     setToggle('set-minyan', STATE.withMinyan, function (v) { STATE.withMinyan = v; storageSet('withMinyan', v); rerender(); });
-    // פסוקי דזמרא עם טעמים — רלוונטי לנוסח אשכנז בלבד (בשלב זה).
+    // פסוקי דזמרא עם טעמים — שחרית של ימי חול בנוסח אשכנז בלבד (בשלב זה);
+    // שבת ויום טוב מוצגים מ-SIDURON_SHABBAT / יום טוב, שאין להם מיפוי.
     setToggle('set-teamim', STATE.teamim, function (v) {
       STATE.teamim = v; storageSet('teamim', v);
       if (window.SiduronTeamim) { window.SiduronTeamim.setEnabled(v); if (v) window.SiduronTeamim.retry(); }
@@ -699,9 +707,9 @@
     if (tn) {
       var tOk = !STATE.permissions || STATE.permissions.indexOf('library.content.read') >= 0;
       var failed = window.SiduronTeamim ? window.SiduronTeamim.failedBooks() : [];
-      var msg = 'הפסוקים נלקחים מספריית אוצריא · נוסח אשכנז בלבד';
+      var msg = 'הפסוקים נלקחים מספריית אוצריא · שחרית של ימי חול, נוסח אשכנז בלבד';
       if (STATE.teamim && STATE.nusach !== 'ashkenaz') msg = 'פעיל בנוסח אשכנז בלבד — הנוסח הנוכחי יוצג ללא טעמים';
-      else if (STATE.teamim && !tOk) msg = 'נדרשת הרשאה: הגדרות → כלים → סידורון → ניהול הרשאות → \"קריאת תוכן ספרים\"';
+      else if (STATE.teamim && !tOk) msg = 'נדרשת הרשאה: הגדרות → כלים → סידורון → ניהול הרשאות → "תוכן ספרים"';
       else if (STATE.teamim && failed.length) msg = 'לא ניתן היה לטעון מאוצריא את: ' + failed.join(', ') + ' — הטקסט מוצג ללא טעמים';
       tn.textContent = msg;
       tn.classList.toggle('warn', STATE.teamim && (!tOk || failed.length > 0 || STATE.nusach !== 'ashkenaz'));
@@ -750,6 +758,17 @@
   function shortcutPermissionGranted() {
     if (!STATE.permissions) return true;
     return STATE.permissions.indexOf('ui.create_shortcut') >= 0;
+  }
+  // A fresh grant list (asked on every return to the page, see
+  // updateKivunButton). When library.content.read was given since the last
+  // list, the te'amim books that failed on it are tried again — no restart.
+  function setGrantedPermissions(granted) {
+    var hadContent = !STATE.permissions || STATE.permissions.indexOf('library.content.read') >= 0;
+    STATE.permissions = granted;
+    if (hadContent || granted.indexOf('library.content.read') < 0) return;
+    if (window.SiduronTeamim) window.SiduronTeamim.retry();
+    buildSettings();
+    if (STATE.teamim && STATE.service) openService(STATE.service, true);
   }
   // Turn the host's RPC error into something a user can act on. The bridge
   // returns codes like `permission_denied`, `error.unsupported: target folder
@@ -844,7 +863,7 @@
     var known = Array.isArray(list) &&
       (list.length === 0 || list.some(function (p) { return p && typeof p.pluginId === 'string'; }));
     btn.hidden = known && !list.some(function (p) { return p && p.pluginId === KIVUN_ID; });
-    if (Array.isArray(granted)) STATE.permissions = granted;   // keep the shortcut hint fresh too
+    if (Array.isArray(granted)) setGrantedPermissions(granted);   // keep the shortcut/te'amim hints fresh too
     var label = !Array.isArray(granted) || granted.indexOf('plugin.open_other') >= 0
       ? KIVUN_LABEL
       : KIVUN_LABEL + ' — נדרשת הרשאה: "פתיחת תוסף אחר"';
