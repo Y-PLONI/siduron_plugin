@@ -29,15 +29,19 @@ function report(label, iso, templateId, over, checks) {
   (checks || []).forEach(c => {
     const seg = r.segs.find(s => s.id === c.id);
     if (!seg) { console.log(`   ✗ MISSING segment ${c.id}`); return; }
-    const has = c.contains ? seg.resolvedText.includes(c.contains) : true;
+    const strip = x => x.replace(/[֑-ׇ]/g, '');
+    let has = c.contains ? seg.resolvedText.includes(c.contains) : true;
+    if (c.notContains) has = has && !strip(seg.resolvedText).includes(strip(c.notContains));
+    if (c.containsPlain) has = has && strip(seg.resolvedText).includes(c.containsPlain);
     const mark = has ? '✓' : '✗';
-    console.log(`   ${mark} ${c.id}${c.contains ? ' contains "' + c.contains + '"' : ''} :: ${clip(seg.resolvedText, 70)}`);
+    console.log(`   ${mark} ${c.id}${c.contains ? ' contains "' + c.contains + '"' : ''}${c.notContains ? ' NOT contains "' + c.notContains + '"' : ''}${c.containsPlain ? ' contains "' + c.containsPlain + '"' : ''} :: ${clip(seg.resolvedText, 70)}`);
   });
 }
 
 // Shacharit edot_mizrach on regular weekday vs RC vs Chanukah
 report('Weekday shacharit', '2026-06-16', 'shacharit_edot_mizrach', null, [
-  { id: 'amidah_gevurot', contains: 'מַשִּׁיב' },        // summer? June → morid hatal, so NOT mashiv
+  { id: 'amidah_gevurot', notContains: 'משיב הרוח' },     // summer: no mashiv haruach
+  { id: 'amidah_gevurot', containsPlain: 'מוריד הטל' },   // summer: morid hatal
 ]);
 report('Rosh Chodesh shacharit', '2026-07-15', 'shacharit_edot_mizrach', null, [
   { id: 'amidah_retzeh', contains: 'יַעֲלֶה' },           // Yaaleh Veyavo present on RC
