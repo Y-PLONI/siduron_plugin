@@ -83,6 +83,11 @@
       case 'noMinchaTachanun': return has('skip_tachanun_mincha');
       case 'lamnatzeach': return !has('skip_tachanun');     // למנצח … יענך before תחנון
       case 'noSlichot': return true;
+      // סליחות בה"ב (שני-חמישי-שני אחרי סוכות/פסח) — מנהג משתנה בין קהילות:
+      // מוצגות רק אם קיים טקסט בקורפוס (ראו bahabSegs) ורק ביום הרלוונטי.
+      case 'bahabSheniKama': return has('bahab_sheni_kama');
+      case 'bahabChamishi': return has('bahab_chamishi');
+      case 'bahabSheniBatra': return has('bahab_sheni_batra');
       // ── מזמורי פתיחה ──
       case 'toda': return !has('skip_mizmor_letodah');      // מזמור לתודה
       // ── שיר של יום placement (avoid showing it twice) ──
@@ -296,9 +301,59 @@
     return !!(d && d[nusach] && d[nusach][service] && d[nusach][service].length);
   }
 
+  /* ────────────── אבינו מלכנו ──────────────
+   * הקורפוס (Tfilon) מכיל כמה גרסאות של הקטע, מותנות בתחנון / עשי"ת / "noGedalya"
+   * בצורה שמציגה אותו בכל יום חול עם תחנון, פעמיים בעשי"ת, ושני נוסחי כתבנו+זכרנו
+   * וחדש+ברך יחד. לכן האיחוד נעשה כאן, לפי דגלי הלוח (calendar.js):
+   *   • הקטע מוצג רק כש-avinu_malkeinu_ayt (עשי"ת, לא שבת, לא ערב יה"כ) או
+   *     avinu_malkeinu_fast (תענית ציבור — במנחה בלבד), או ביום כיפור (בלוק kipur).
+   *   • מוצגת גרסה אחת בלבד (הראשונה שתנאי הכותרת שלה מתקיימים).
+   *   • "חדש עלינו"/"כתבנו" — בעשי"ת בלבד; "ברך עלינו"/"זכרנו" — בתענית בלבד.
+   * Returns { skip: bool[], force: bool[] } — force = line decided here, ignore its cond. */
+  var AM_HEADER = 'אבינו מלכנו';
+  var AM_ONLY_AYT_RE = /^אבינו מלכנו (?:חדש עלינו|כתבנו)/;
+  var AM_ONLY_FAST_RE = /^אבינו מלכנו (?:ברך עלינו|זכרנו)/;
+  function planAvinuMalkeinu(segs, hasF, service) {
+    var skip = [], force = [], i, n = segs.length;
+    for (i = 0; i < n; i++) { skip.push(false); force.push(false); }
+    var inAyt = hasF('aseret_yemei_teshuva');
+    var allowed = hasF('avinu_malkeinu_ayt') ||
+      (hasF('avinu_malkeinu_fast') && service === 'mincha');
+    // מנחה בערב שבת (שישי בעשי"ת / בצום) — לא אומרים; ביום כיפור — רק בשחרית
+    // (הנעילה מחוץ לסידור היומי), בכל הנוסחים.
+    if (service === 'mincha' && (hasF('day_friday') || hasF('yom_kippur'))) allowed = false;
+    var chosen = false;
+    i = 0;
+    while (i < n) {
+      if (!(segs[i].kind === 'header' && plain(segs[i].text) === AM_HEADER)) { i++; continue; }
+      var j = i + 1;
+      while (j < n && segs[j].kind !== 'header') j++;
+      var cond = segs[i].cond || [];
+      var isKipur = cond.indexOf('avinu_malkenu_kipur') >= 0;
+      var ok = ((isKipur && service !== 'mincha') || allowed) && !chosen && condPasses(cond, hasF);
+      for (var k = i; k < j; k++) {
+        if (!ok) { skip[k] = true; continue; }
+        var t = plain(segs[k].text);
+        if (AM_ONLY_AYT_RE.test(t)) { force[k] = true; if (!inAyt) skip[k] = true; }
+        else if (AM_ONLY_FAST_RE.test(t)) { force[k] = true; if (inAyt) skip[k] = true; }
+      }
+      if (ok) chosen = true;
+      i = j;
+    }
+    return { skip: skip, force: force };
+  }
+
   // Render a flat seg list ({kind,text,cond?}) → { html, nav }.
-  function renderSegs(segs, dayFlags) {
-    var hasF = makeHas(dayFlags);
+  // `service` ('shacharit' | 'mincha' | 'arvit' | undefined) lets rules that depend on
+  // WHICH prayer is being said (אבינו מלכנו, ועננו) apply.
+  function renderSegs(segs, dayFlags, service) {
+    var hasBase = makeHas(dayFlags);
+    // ערבית נאמרת בכניסת היום: בלילה שלפני תענית עדיין לא אומרים עננו (ועננו
+    // בקורפוס מותנה ב-fast_day), לכן בערבית מתעלמים מ-fast_day.
+    var hasF = service === 'arvit'
+      ? function (f) { return f === 'fast_day' ? false : hasBase(f); }
+      : hasBase;
+    var am = planAvinuMalkeinu(segs, hasF, service);
     // 'with_minyan' is added by the flag engine from the user's profile
     // (js/calendar.js) — absent means "מתפלל ביחידות".
     var noMinyan = !hasF('with_minyan');
@@ -316,6 +371,9 @@
     }
     for (var i = 0; i < segs.length; i++) {
       var s = segs[i];
+      if (am.skip[i]) continue;
+      // מציין-מקום בקורפוס ("=-=-", "=====") — לא טקסט תפילה, לא מציגים.
+      if (s.kind !== 'header' && /^[=\-~\s]+$/.test(s.text || '') && /[=\-~]/.test(s.text)) continue;
       if (mark && mark.drop[i]) {
         // Collect the labels of this dropped run; they're flushed as ONE muted
         // line when the run ends, so חזרת הש"ץ + קדושה + מודים דרבנן + ברכת
@@ -331,7 +389,7 @@
       // cond tag (winterTal/summerTal for גבורות, winterBracha/summerBracha for
       // ברכת השנים), so gating is done purely via condPasses — the block kind is
       // only a styling hint here (unlike the תוספות, where kind is the gate).
-      if (!condPasses(s.cond, hasF)) continue;
+      if (!am.force[i] && !condPasses(s.cond, hasF)) continue;
 
       if (s.kind === 'header') {
         var a = 'svc-anchor-' + (n++);
@@ -349,14 +407,48 @@
     return { html: out.join('\n'), nav: nav };
   }
 
+  // סליחות בה"ב: הטקסט קיים בקורפוס smart-siddur (SIDDUR_DATA.nusach[n].selichot_bahab_*)
+  // רק לנוסח ספרד; באשכנז יש קטע כללי קצר בלבד ובעדות המזרח אין. מחברים אותו
+  // בזמן ריצה לפני סליחות י"ז בתמוז/י' בטבת (אותו מקום בשחרית), ורק אם הטקסט קיים.
+  // המנהג בבה"ב משתנה בין קהילות — לכן אין שום תוספת אם אין טקסט לנוסח.
+  var BAHAB_KEYS = [['selichot_bahab_sheni_kama', 'bahabSheniKama'],
+                    ['selichot_bahab_chamishi', 'bahabChamishi'],
+                    ['selichot_bahab_sheni_batra', 'bahabSheniBatra']];
+  var _bahabCache = {};
+  function bahabSegs(nusach) {
+    if (_bahabCache[nusach]) return _bahabCache[nusach];
+    var sd = global.SIDDUR_DATA, ns = sd && sd.nusach && sd.nusach[nusach], out = [];
+    if (ns) BAHAB_KEYS.forEach(function (kc) {
+      var e = ns[kc[0]];
+      if (!e || !e.sections) return;
+      e.sections.forEach(function (sec) {
+        var t = (sec.text || []).join('\n');
+        if (t.trim()) out.push({ kind: 'text', text: t, cond: [kc[1]] });
+      });
+    });
+    return (_bahabCache[nusach] = out);
+  }
+  function withBahab(nusach, segs) {
+    var add = bahabSegs(nusach);
+    if (!add.length) return segs;
+    var at = -1;
+    for (var i = 0; i < segs.length; i++) {
+      var c = segs[i].cond;
+      if (c && c.indexOf('17tammuz') >= 0) { at = i; break; }
+    }
+    if (at < 0) return segs;
+    return segs.slice(0, at).concat(add, segs.slice(at));
+  }
+
   // Weekday services (Tfilon) — window.SIDURON_SERVICES.
   function render(nusach, service, dayFlags) {
     var d = data();
     var segs = (d && d[nusach] && d[nusach][service]);
     if (!segs || !segs.length) return null;   // caller falls back
     // פסוקי דזמרא עם טעמים (אם הוגדר) — מחליף את הקטעים בפסוקים מאוצריא.
+    if (service === 'shacharit') segs = withBahab(nusach, segs);
     if (global.SiduronTeamim) segs = global.SiduronTeamim.transform(nusach, service, segs);
-    return renderSegs(segs, dayFlags);
+    return renderSegs(segs, dayFlags, service);
   }
 
   // Shabbat / Yom-Tov services (seforim.db) — window.SIDURON_SHABBAT.

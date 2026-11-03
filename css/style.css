@@ -70,6 +70,19 @@ body { overflow: hidden; }
 .hdr-svc { font-size: 1rem; font-weight: 700; color: var(--c-primary); display: none; }
 .scrolled .hdr-svc { display: inline; }
 .scrolled .hdr-date, .scrolled .hdr-season { display: none; }
+/* Compact prayer switcher — the tabs collapse on scroll, so this keeps שחרית/מנחה/מעריב
+   one tap away without scrolling back to the top. */
+.mini-tabs { display: none; gap: 2px; min-width: 0; flex: 0 1 auto; overflow-x: auto; }
+.scrolled .mini-tabs { display: flex; }
+.mini-tab {
+  border: none; background: transparent; color: var(--c-on-surface-variant);
+  padding: 6px 10px; border-radius: 999px; font-family: inherit;
+  font-size: .85rem; font-weight: 600; cursor: pointer; white-space: nowrap;
+}
+.mini-tab:hover { background: var(--c-primary-subtle); }
+.mini-tab.active { background: var(--c-secondary-container); color: var(--c-on-secondary-container); }
+/* Narrow screens: the active mini-tab already names the prayer. */
+@media (max-width: 560px) { .scrolled .hdr-svc { display: none; } .mini-tab { padding: 6px 8px; font-size: .8rem; } }
 
 /* Collapse the badges + tabs on scroll to give the text more height. */
 .hdr-badges, .tabs { transition: max-height .2s ease, opacity .15s ease, margin .2s ease; overflow: hidden; max-height: 60px; }

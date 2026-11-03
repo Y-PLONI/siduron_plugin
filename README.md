@@ -32,6 +32,8 @@ node tools/build-data.js     # → data/siddur-data.js   (~1.9MB, מ-smart-siddu
 node tools/build-extras.js   # → data/extras-data.js   (~0.5MB, מ-tfilon)
 ```
 
+**הערה:** `data/shabbat-data.js` נערך ישירות (לא דרך `tools/data-overrides/`, שמיועד רק לקטעים משותפים של `build-data.js`): נוספו תנאי `cond` (`chanuka`/`purim`) לקטעי "על הנסים" והוספת "ברכי נפשי" (`rh`) לשחרית אשכנז. הרצה מחדש של `tools/extract-shabbat.py` תדרוס אותם — יש להחיל מחדש בסקריפט.
+
 `vendor/hebcal.js` הופק מ-`@hebcal/core@5.10.1` (`dist/bundle.min.js`).
 
 ## בדיקות

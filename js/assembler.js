@@ -22,6 +22,26 @@
     return Array.isArray(t) ? t.join(' ') : String(t);
   }
 
+  // קריאת התורה: בנתונים (kriah_rc) מופיעה ההוראה "לוי (חוזר מ"ואמרת להם")".
+  // במקומה — כותרת "לוי" ואחריה הפסוק שלפניה שוב (מכפילים את הפסוק אחרי הלוי).
+  // פועל על מערך שורות, לפני ה-join.
+  var LEVI_REPEAT_RE = /^\s*לוי\s*\(\s*חוזר[^)]*\)\s*$/;
+  function stripNikud(t) { return String(t).replace(/<[^>]*>/g, '').replace(/[֑-ׇ]/g, ''); }
+  function expandLeviRepeat(arr) {
+    if (!Array.isArray(arr)) return arr;
+    var out = [];
+    for (var i = 0; i < arr.length; i++) {
+      if (LEVI_REPEAT_RE.test(stripNikud(arr[i])) && out.length) {
+        var verse = out[out.length - 1];
+        out.push('לוי');
+        out.push(verse);
+        continue;
+      }
+      out.push(arr[i]);
+    }
+    return out;
+  }
+
   // ── segment / template resolution (mirrors prayer_local_datasource.dart) ────
   function loadTemplate(templateId) {
     var t = data().templates[templateId];
@@ -64,7 +84,7 @@
       var excl = s.exclude_flags || [];
       if (!arrEvery(cond, function (k) { return keys.indexOf(k) >= 0; })) continue;
       if (arrAny(excl, function (k) { return keys.indexOf(k) >= 0; })) continue;
-      var t = joinText(s.text);
+      var t = joinText(expandLeviRepeat(s.text));
       if (t) out.push(t);
     }
     return out.join('\n');
@@ -209,7 +229,7 @@
   function assembleSectionsRaw(sections) {
     var parts = [];
     for (var i = 0; i < (sections || []).length; i++) {
-      var t = joinText(sections[i].text);
+      var t = joinText(expandLeviRepeat(sections[i].text));
       if (t) parts.push(t);
     }
     return parts.join('\n');
