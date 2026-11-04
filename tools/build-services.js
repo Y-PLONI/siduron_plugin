@@ -63,3 +63,7 @@ const bytes = fs.statSync(OUT).size;
 console.log('Wrote', path.relative(ROOT, OUT), '(' + (bytes / 1024 / 1024).toFixed(2) + ' MB)');
 stats.forEach(s => console.log(s));
 if (missing) console.log('TOTAL missing includes:', missing);
+
+// הושענות (tools/data-overrides/hoshanot_*.json) are spliced in after the build —
+// keep them on a rebuild.
+require('child_process').execFileSync(process.execPath, [path.join(__dirname, 'apply-hoshanot.js')], { stdio: 'inherit' });

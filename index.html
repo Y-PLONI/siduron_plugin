@@ -12,6 +12,8 @@
       <div class="header-date">
         <span class="hdr-date" id="hdr-date"></span>
         <span class="hdr-svc" id="hdr-svc"></span>
+        <!-- ניווט תפילות קומפקטי: מוצג רק כשהכותרת מכווצת בגלילה (ראו renderTabs ב-js/app.js) -->
+        <nav class="mini-tabs" id="mini-tabs" aria-label="מעבר בין תפילות"></nav>
         <span class="hdr-season" id="hdr-season"></span>
         <div class="header-tools">
           <button class="tool-btn" id="btn-nav" aria-label="קפיצה לקטע" title="קפיצה לקטע">
@@ -123,7 +125,7 @@
           <div class="settings-row stacked">
             <div class="settings-row-text">
               <div class="settings-row-title">תצוגת שם ה׳</div>
-              <div class="settings-row-subtitle">כיצד יוצג שם הקודש בתפילה</div>
+              <div class="settings-row-subtitle">שני יו״דין (יְיָ) · ידוד מנוקד (יְדֹוָד) · ה׳ · או ככתוב במקור</div>
             </div>
             <div class="segmented" id="set-divine" role="group" aria-label="תצוגת שם ה׳"></div>
           </div>
@@ -158,6 +160,7 @@
   <script src="data/siddur-data.js"></script>
   <script src="data/services-data.js"></script>
   <script src="data/shabbat-data.js"></script>
+  <script src="data/slichot-data.js"></script>
   <script src="data/extras-data.js"></script>
   <script src="data/teamim-map.js"></script>
   <script src="data/locations.js"></script>

@@ -34,7 +34,7 @@ function norm(html) {
 }
 
 /* ────────────────────────── 1. RTL icon ────────────────────────── */
-section('1. סמל התוסף — כיוון ימין→שמאל');
+section('1. סמל התוסף');
 const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifest.json'), 'utf8'));
 const iconName = manifest.contributes.toolTab.iconName;
 // book_24_regular is drawn as a closed book bound on the LEFT — an LTR book.
@@ -79,33 +79,20 @@ function readPng(file) {
   return { w: w, h: h, px: out };
 }
 const png = readPng(path.join(ROOT, 'icon', 'icon.png'));
-const rows = [];
-for (let y = 0; y < png.h; y++) {
-  const xs = [];
-  for (let x = 0; x < png.w; x++) {
-    const i = (y * png.w + x) * 4;
-    if (png.px[i + 3] > 100 && png.px[i] > 200 && png.px[i + 1] > 200 && png.px[i + 2] > 200) xs.push(x);
-  }
-  if (xs.length) rows.push({ y: y, left: xs[0], right: xs[xs.length - 1], n: xs.length });
-}
-check('icon has text lines', rows.length > 0);
-if (rows.length) {
-  const rightEdges = rows.map(r => r.right);
-  const widest = Math.max.apply(null, rows.map(r => r.n));
-  const shortRows = rows.filter(r => r.n < widest);
-  const longRows = rows.filter(r => r.n === widest);
-  check('all icon lines share the same right edge (right-aligned = RTL)',
-    Math.max.apply(null, rightEdges) - Math.min.apply(null, rightEdges) <= 1);
-  check('the short line stops early on the LEFT, not on the right',
-    shortRows.length > 0 && shortRows.every(r => r.left > longRows[0].left),
-    JSON.stringify({ short: shortRows[0], long: longRows[0] }));
-}
+// The icon is a picture (a gilded סידור, 512×512) — no longer the old text-line
+// glyph, so check the format rather than the layout of text lines.
+check('icon is a square PNG of at least 256px', png.w === png.h && png.w >= 256, png.w + 'x' + png.h);
+check('icon has visible content (not blank)', (function () {
+  let opaque = 0;
+  for (let i = 3; i < png.px.length; i += 4) if (png.px[i] > 100) opaque++;
+  return opaque > png.w * png.h / 4;
+})());
 
 /* ─────────────── 2. תפילה ללא מניין (js/services.js) ─────────────── */
 section('2. תפילה ללא מניין');
 const svcCtx = vm.createContext({ console });
 svcCtx.window = svcCtx;
-['data/services-data.js', 'data/shabbat-data.js', 'js/services.js'].forEach(f =>
+['data/services-data.js', 'data/shabbat-data.js', 'data/slichot-data.js', 'js/services.js'].forEach(f =>
   vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), svcCtx));
 const SVC = svcCtx.SiduronServices;
 const CORPORA = {
@@ -257,7 +244,7 @@ const win = dom.window, doc = win.document;
 const errors = [];
 win.addEventListener('error', e => errors.push(String(e.error && e.error.stack || e.message)));
 // jsdom does not fetch <script src> — inject index.html's scripts in order.
-['vendor/hebcal.js', 'data/siddur-data.js', 'data/services-data.js', 'data/shabbat-data.js',
+['vendor/hebcal.js', 'data/siddur-data.js', 'data/services-data.js', 'data/shabbat-data.js', 'data/slichot-data.js',
   'data/extras-data.js', 'data/locations.js', 'js/calendar.js', 'js/assembler.js', 'js/render.js',
   'js/services.js', 'js/extras.js', 'js/app.js'].forEach(f => {
     const s = doc.createElement('script');
@@ -572,7 +559,7 @@ setTimeout(async function () {
       on: (topic, fn) => { if (topic === 'plugin.boot') bootHandler = fn; },
       off() {},
     };
-    ['vendor/hebcal.js', 'data/siddur-data.js', 'data/services-data.js', 'data/shabbat-data.js',
+    ['vendor/hebcal.js', 'data/siddur-data.js', 'data/services-data.js', 'data/shabbat-data.js', 'data/slichot-data.js',
       'data/extras-data.js', 'data/locations.js', 'js/calendar.js', 'js/assembler.js', 'js/render.js',
       'js/services.js', 'js/extras.js', 'js/app.js'].forEach(f => {
         const s = d2.createElement('script');

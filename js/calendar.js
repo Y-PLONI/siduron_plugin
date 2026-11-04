@@ -87,18 +87,17 @@
       var fl = e.getFlags();
 
       if (fl & F.ROSH_CHODESH) isRC = true;
-      if (fl & (F.MINOR_FAST | F.MAJOR_FAST)) isTaanis = true;
+      // תענית ציבור בלבד: תענית בכורות (ערב פסח) ויום כיפור קטן מסומנים ב-hebcal
+      // כ-MINOR_FAST אך אינם תענית ציבור (אין בהם אבינו מלכנו, ק"ת של תענית, עננו).
+      if ((fl & (F.MINOR_FAST | F.MAJOR_FAST)) && !/Bechorot/i.test(d) &&
+          !/Yom Kippur Katan/i.test(d) && !/^Erev /.test(d)) isTaanis = true; // "Erev Tish'a B'Av" נושא MAJOR_FAST
       if (fl & F.OMER_COUNT) { omerDay = e.omer; }
 
       if (/Yom Kippur Katan/i.test(d)) isYomKippurKatan = true;
 
       // Chanukah ("Chanukah: N Candles" / "Chanukah: N Candle" / "8th Day")
-      if (/^Chanukah/.test(d)) {
-        isChan = true;
-        var cm = d.match(/(\d+) Candle/);
-        if (cm) chanCandles = parseInt(cm[1], 10);
-        else if (/8th Day/.test(d)) chanCandles = 9; // → day 8 (candles-1)
-      }
+      // (חנוכה: ראו chanukahDayFromDate למטה — "Chanukah: 1 Candle" של hebcal נופל
+      // ב-כ"ד בכסלו, ולכן לא משתמשים בקיום האירוע לקביעת הדגל.)
 
       // Chol HaMoed (Pesach / Sukkot)
       if (fl & F.CHOL_HAMOED) {
@@ -116,7 +115,7 @@
       if (d === 'Shmini Atzeret') add('SHEMINI_ATZERES');
       if (d === 'Simchat Torah') add('SIMCHAS_TORAH');
       if (d === 'Erev Pesach') add('EREV_PESACH');
-      if (/^Pesach/.test(d) && !(fl & F.CHOL_HAMOED) && !(fl & F.EREV)) add('PESACH');
+      if (/^Pesach/.test(d) && !/Pesach Sheni/.test(d) && !(fl & F.CHOL_HAMOED) && !(fl & F.EREV)) add('PESACH');
       if (d === 'Pesach Sheni') add('PESACH_SHENI');
       if (d === 'Lag BaOmer') add('LAG_BAOMER');
       if (d === 'Erev Shavuot') add('EREV_SHAVUOS');
@@ -131,16 +130,14 @@
       if (/^Tzom Gedaliah/.test(d)) add('FAST_OF_GEDALYAH');
       if (/^Ta'anit Esther/.test(d)) add('FAST_OF_ESTHER');
       if (/^Tzom Tammuz/.test(d)) add('SEVENTEEN_OF_TAMMUZ');
-      if (/^Tish'a B'?Av/.test(d) || /Tish'a B'Av/.test(d)) add('TISHA_BEAV');
+      // עוגן ^ — "Erev Tish'a B'Av" (ח' באב) אינו תשעה באב.
+      if (/^Tish'a B'?Av/.test(d)) add('TISHA_BEAV');
     }
 
     // Chanukah day 1..8 from candle count (candles = day + 1).
-    var chanukahDay = null;
-    if (isChan && chanCandles != null) {
-      chanukahDay = Math.max(1, Math.min(8, chanCandles - 1));
-    } else if (isChan) {
-      chanukahDay = chanukahDayFromDate(hd); // fallback
-    }
+    // היום בחנוכה נגזר מהתאריך העברי (כ"ה בכסלו = יום 1) ולא ממספר הנרות.
+    var chanukahDay = chanukahDayFromDate(hd);
+    isChan = chanukahDay != null;
 
     return {
       hd: hd,
@@ -172,6 +169,7 @@
     // because Chanukah straddles the year boundary only at Kislev/Tevet (same yy).
     var day = abs - start.abs() + 1;
     if (day < 1 || day > 8) return null;
+    if (hd.getMonth() !== M.KISLEV && hd.getMonth() !== M.TEVET) return null;
     return day;
   }
 
@@ -222,15 +220,19 @@
   }
   function isTalUmatarPeriod(m, d, date, inIsrael) {
     if (m >= M.IYYAR && m < M.TISHREI) return false; // Iyar(2)…Elul(6): summer
-    if (m === M.TISHREI && d < 22) return false;
+    // כל תשרי (גם אחרי שמיני עצרת — עד 22/23 בו כבר "משיב הרוח" אך עדיין "ותן
+    // ברכה") וגם א'–ו' בחשוון: ותן ברכה. בא"י "ותן טל ומטר" מתחיל בליל ז'
+    // מרחשוון (= היום ז' ואילך; ערבית נגזרת מהיום שהלילה פותח). בחו"ל — מליל
+    // 4 בדצמבר (5 בשנה שלפני גרגוריאנית מעוברת).
+    if (m === M.TISHREI) return false;
     if (m === M.NISAN && d >= 15) return false;
     if (inIsrael) {
       if (m === M.CHESHVAN && d < 7) return false;
       return true;
     }
-    // Diaspora: Dec 4/5 start (Gregorian).
+    // חו"ל: ליל 4/12 שייך ליום האזרחי 5/12 — היום הראשון עם הדגל הוא start+1.
     var gm = date.getMonth() + 1, gd = date.getDate();
-    if (gm === 12) return gd >= diasporaTalUmatarStartDay(date.getFullYear());
+    if (gm === 12) return gd >= diasporaTalUmatarStartDay(date.getFullYear()) + 1;
     if (gm <= 5) return true;  // Jan–May
     return false;              // Oct–Nov
   }
@@ -293,6 +295,7 @@
     };
 
     addDayIdentification(c, date, ctx, yt, f);
+    addSlichot(c, f);
     addSeasonFlags(c, date, ctx, yt, f);
     addTachanun(c, f);
     if (f.has(DF.skipTachanun)) f.add(DF.skipLamenatzeach);
@@ -339,14 +342,16 @@
     // kriat_hatorah_mon_thu
     if (f.has(DF.mondayThursday) && upcomingParshah &&
         !f.has(DF.roshChodesh) && !f.has(DF.chanukah) && !f.has(DF.purim) &&
-        !f.has(DF.shushanPurim) && !f.has(DF.cholHamoedPesach) &&
+        !f.has(DF.cholHamoedPesach) &&
         !f.has(DF.cholHamoedSukkot) && !f.has(DF.fastDay)) {
       f.add(DF.kriatHatorahMonThu);
     }
     if (f.has(DF.roshChodesh) && !f.has(DF.chanukah)) f.add(DF.kriatHatorahRc);
     if (f.has(DF.roshChodesh) && f.has(DF.chanukah)) f.add(DF.rcTevet);
     if (f.has(DF.chanukah) && !f.has(DF.roshChodesh)) f.add(DF.kriatHatorahChanukah);
-    if (f.has(DF.purim) || f.has(DF.shushanPurim)) f.add(DF.kriatHatorahPurim);
+    // רק ביום פורים עצמו (לפי purimDate); שושן פורים בעיר שאינה מוקפת הוא יום
+    // רגיל לעניין קריאת התורה (ב'/ה' — קריאה רגילה, אחרת אין קריאה).
+    if (f.has(DF.purim)) f.add(DF.kriatHatorahPurim);
 
     if ((pesachDay != null && pesachDay >= 2 && pesachDay <= 6) ||
         (sukkotDay != null && sukkotDay >= 2 && sukkotDay <= 7)) {
@@ -423,11 +428,51 @@
 
     if (m === M.ELUL && !f.has(DF.erevRoshHashanah)) f.add(DF.elul);
     if (m === M.ELUL) f.add(DF.ladavid_season);
-    if (m === M.TISHREI && d <= 10) f.add(DF.ladavid_season);
+    // לדוד ה' אורי: מר"ח אלול עד הושענא רבה (כ"א תשרי) כולל.
+    if (m === M.TISHREI && d <= 21) f.add(DF.ladavid_season);
     if (dowMon === 5) f.add(DF.erevShabbat);            // Friday
     // מוצאי שבת: ערבית של יום ראשון *נכנסת* במוצאי שבת (שבת תמיד קודמת לו),
     // ולכן אתה חוננתנו / ויהי נועם / הבדלה נגזרים מהיום ולא מהיום שלפניו.
     if (dowMon === 7) f.add(DF.motzaeiShabbat);         // Sunday
+  }
+
+  // ── סליחות (נוסח אשכנז/ליטא; הנוסחים האחרים אינם משתמשים בדגלים אלה) ──
+  // בספר הסליחות (אשכנז/ליטא) הימים ממוספרים לפי סדר ימי הסליחות, לא לפי ימות
+  // השבוע: "ליום ראשון" … "ליום שביעי" = היום ה-1…7 של הסליחות (שבת אינה נמנית —
+  // לכן יש "ליום שביעי"), ו"ליום שני…חמישי דעשי"ת" = היום ה-2…5 של סליחות עשי"ת,
+  // כשצום גדליה הוא הראשון (בין צום גדליה לערב יה"כ יש תמיד בדיוק 4 ימי סליחות).
+  //  • slichot_elul + slichot_elul_day_N: מהיום-ראשון שלפני ר"ה (אם ר"ה חל ביום
+  //    ב'/ג' — מיום ראשון של השבוע הקודם, כדי שיהיו לפחות ארבעה ימי סליחות) ועד
+  //    ערב ר"ה, ללא שבת וללא ערב ר"ה עצמו (slichot_erev_rh).
+  //  • עשי"ת: צום גדליה (slichot_gedalia), ימי עשי"ת (slichot_ayt_N, N=2..5),
+  //    ערב יה"כ (slichot_erev_yk).
+  // מחזיר כמה ימים שאינם שבת יש בטווח [from, to] (absolute days).
+  function weekdaysBetween(from, to) {
+    var n = 0;
+    for (var a = from; a <= to; a++) if (new H.HDate(a).getDay() !== 6) n++;
+    return n;
+  }
+  function addSlichot(c, f) {
+    var m = c.month, d = c.day, dow = c.dowMon, abs = c.hd.abs();
+    if (dow === 6) return;                                    // אין סליחות בשבת
+    if (m === M.ELUL) {
+      var rh = new H.HDate(1, M.TISHREI, c.year + 1);
+      var rhAbs = rh.abs(), rhJs = rh.getDay();               // 0=Sun … 6=Sat
+      var start = rhAbs - (rhJs === 0 ? 7 : rhJs);            // the Sunday before ר"ה
+      if (rhJs === 1 || rhJs === 2) start -= 7;
+      if (abs === rhAbs - 1) f.add('slichot_erev_rh');
+      else if (abs >= start && abs < rhAbs) {
+        f.add('slichot_elul');
+        f.add('slichot_elul_day_' + weekdaysBetween(start, abs));
+      }
+    } else if (m === M.TISHREI) {
+      if (f.has(DF.fastGedalia)) { f.add('slichot_gedalia'); return; }
+      if (f.has(DF.erevYomKippur)) { f.add('slichot_erev_yk'); return; }
+      // צום גדליה: ג' בתשרי, או ד' כשג' חל בשבת (נדחה).
+      var g3 = new H.HDate(3, M.TISHREI, c.year);
+      var gAbs = g3.abs() + (g3.getDay() === 6 ? 1 : 0);
+      if (abs > gAbs && d <= 8) f.add('slichot_ayt_' + (1 + weekdaysBetween(gAbs + 1, abs)));
+    }
   }
 
   function addPurim(c, ctx, yt, f) {
@@ -482,11 +527,28 @@
   }
 
   function addAvinoMalkeinu(f) {
+    // אבינו מלכנו — לא בשבת, לא בראש השנה, לא בתשעה באב ולא בערב יום כיפור
+    // (רמ"א תר"ד ב), חוץ מכשיום כיפור חל בשבת: אז אומרים בשחרית של ערב יוה"כ
+    // (יום שישי; במנחה של ערב שבת ממילא לא אומרים — ראו services.js).
+    //  • avinu_malkeinu_ayt  — עשרת ימי תשובה (שחרית ומנחה; ביום כיפור — בנעילה/במחזור).
+    //  • avinu_malkeinu_fast — תענית ציבור שאינה בעשי"ת: שחרית ומנחה (רמ"א תקפ"ד א).
+    //  • avinu_malkeinu      — איחוד (תצוגה/תאימות).
+    // הבחירה בין "כתבנו" (עשי"ת) ל-"זכרנו" (תענית) נעשית ב-services.js לפי
+    // aseret_yemei_teshuva — בכל מקרה אחד מהם בלבד, לעולם לא שניהם.
     var isAyt = f.has(DF.asaretYemeiTeshuva), isFast = f.has(DF.fastDay),
-      isShabbat = f.has(DF.shabbat), isYK = f.has(DF.yomKippur), isTB = f.has(DF.tishaBaav);
-    if ((isAyt || isFast) && !isShabbat && !isTB) f.add(DF.avinoMalkeinu);
+      isShabbat = f.has(DF.shabbat), isYK = f.has(DF.yomKippur),
+      isTB = f.has(DF.tishaBaav), isErevYK = f.has(DF.erevYomKippur);
+    // ערב יוה"כ ביום שישי = יום כיפור בשבת → אומרים בשחרית.
+    var erevYKAllowed = isErevYK && f.has(DF.dayFriday);
+    var blockErevYK = isErevYK && !erevYKAllowed;
+    // בראש השנה לא אומרים אבינו מלכנו (גם לא בעדות המזרח, שבה הקורפוס מותנה ב-ayt בלבד).
+    var isRH = f.has(DF.roshHashanah);
+    if (isAyt && !isShabbat && !blockErevYK && !isRH) f.add('avinu_malkeinu_ayt');
+    if (isFast && !isAyt && !isShabbat && !isTB) f.add('avinu_malkeinu_fast');
+    if ((isAyt || isFast) && !isShabbat && !isTB && !blockErevYK && !isRH) f.add(DF.avinoMalkeinu);
     if (isYK) f.add(DF.avinoMalkeinu);
   }
+
 
   function addYaalehVeyavo(f) {
     var days = [DF.roshChodesh, DF.roshHashanah, DF.pesach, DF.cholHamoedPesach,
@@ -520,7 +582,7 @@
 
   function addKriatHatorah(f) {
     var has = f.has(DF.mondayThursday) || f.has(DF.roshChodesh) || f.has(DF.fastDay) ||
-      f.has(DF.chanukah) || f.has(DF.purim) || f.has(DF.shushanPurim) ||
+      f.has(DF.chanukah) || f.has(DF.purim) ||
       f.has(DF.cholHamoedPesach) || f.has(DF.cholHamoedSukkot) || f.has(DF.shabbat) ||
       f.has(DF.roshHashanah) || f.has(DF.yomKippur) || f.has(DF.pesach) ||
       f.has(DF.shavuot) || f.has(DF.sukkot) || f.has(DF.sheminiAtzeret) ||

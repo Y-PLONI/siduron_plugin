@@ -14,6 +14,7 @@
 | [vendor/hebcal.js](vendor/hebcal.js) | חבילת הדפדפן הרשמית של `@hebcal/core` (לוח עברי + זמנים, offline). חושף `window.hebcal`. |
 | [data/siddur-data.js](data/siddur-data.js) | **נוצר אוטומטית** — קורפוס שחרית/מנחה/מעריב (`window.SIDDUR_DATA`, מ-smart-siddur). |
 | [data/extras-data.js](data/extras-data.js) | **נוצר אוטומטית** — תוספות וברכות (`window.SIDDUR_EXTRAS`, מ-tfilon). |
+| [data/slichot-data.js](data/slichot-data.js) | **נוצר אוטומטית** — סליחות נוסח אשכנז (`window.SIDURON_SLICHOT`), מ-`tools/data-overrides/slichot_ashkenaz*.json`. נבחר בזמן ריצה לפי דגלי `slichot_*` (`js/calendar.js`, `SiduronServices.slichotId`); הטאב "סליחות" מופיע רק באשכנז, בימי סליחות. |
 | [js/extras.js](js/extras.js) | תפריט התוספות + רינדור, עם מעריך-תנאים שממיר תגי-תנאי של tfilon ל-flags (כך שיעלה-ויבוא בברכת המזון מופיע רק בר"ח, על-הנסים רק בחנוכה/פורים וכו'). |
 | [js/calendar.js](js/calendar.js) | מנוע ה-flags ההלכתי. ניוד נאמן של `halachic_calendar_service.dart` מ-smart-siddur מעל hebcal → `flagsFor(date, ctx)`. |
 | [js/assembler.js](js/assembler.js) | הרכבת התפילה: gate של `condition_flags`/`exclude_flags` ברמת template וברמת section, רקורסיה ל-sub-templates, ו-post-processors (עומר, קרבנות, קריאת שני/חמישי, ר"ח טבת, שיר-של-יום גר"א). |
@@ -30,13 +31,25 @@
 ```bash
 node tools/build-data.js     # → data/siddur-data.js   (~1.9MB, מ-smart-siddur)
 node tools/build-extras.js   # → data/extras-data.js   (~0.5MB, מ-tfilon)
+node tools/build-slichot.js   # → data/slichot-data.js   (~1.3MB, מ-tools/data-overrides/slichot_ashkenaz*.json)
+node tools/apply-beit-midrash.js   # תפילות כניסה/יציאה מבית המדרש → data/extras-data.js (ללא קורפוס tfilon)
 ```
+
+**הערה:** שתי תפילות בית המדרש (`tefila_kenisa_beit_midrash`, `tefila_yetzia_beit_midrash`) אינן מ-tfilon אלא מ-`tools/data-overrides/beit_midrash.json`; `build-extras.js` קורא אותן (שדה `override`), ו-`tools/apply-beit-midrash.js` מחיל אותן idempotent על הנתונים שבריפו.
+
+**עיבוד-המשך (post-processing) — idempotent, ומורץ אוטומטית:**
+- `tools/apply-shabbat-fixes.js` על `data/shabbat-data.js` (מורץ בסוף `tools/extract-shabbat.py`): "על הנסים" מפוצל לחנוכה (`chanuka`) ולפורים (`purim`), "לדוד ה' אורי" בעונתו (`ledavid`), "ברכי נפשי" בשבת ר"ח באשכנז (`rh`, מ-`tools/data-overrides/barchi_nafshi_ashkenaz.json`), והסרת "מי שברך" לחיילי צה"ל ולשבויים.
+- `tools/apply-hoshanot.js` על `data/services-data.js` ו-`data/shabbat-data.js` (מורץ בסוף `build-services.js` ו-`extract-shabbat.py`): הושענות לכל יום בחוה"מ, לשבת ולהושענא רבה מ-`tools/data-overrides/hoshanot_*.json`. באשכנז נבחרת ההושענא לפי היום בשבוע (תג `dowNNN`); בעדות המזרח הושענות לשבת רק בחו"ל.
+- תיקוני נוסח בתוספות (כגון תפילת הדרך בעדות המזרח) — `TEXT_FIXES` ב-`tools/build-extras.js`.
+
+**סליחות:** בספר הסליחות (אשכנז/ליטא) הימים ממוספרים לפי **סדר ימי הסליחות** ולא לפי ימות השבוע ("ליום שביעי" — שבת אינה נמנית): `day1`…`day7` באלול, ו-`ayt_2`…`ayt_5` אחרי צום גדליה ("ליום שני…חמישי דעשי"ת"). הבחירה בדגלי `slichot_elul_day_N` / `slichot_ayt_N` ב-`js/calendar.js`.
 
 `vendor/hebcal.js` הופק מ-`@hebcal/core@5.10.1` (`dist/bundle.min.js`).
 
 ## בדיקות
 
 ```bash
+node tools/test-logic.js         # רגרסיות הלכתיות: חנוכה, טל ומטר, אבינו מלכנו, הושענות, סליחות
 node tools/test-calendar.js      # flags על תאריכים מייצגים
 node tools/test-assemble.js      # הרכבה מקצה-לקצה
 node tools/test-fuzz.js          # שנתיים × 3 נוסחים × 4 שירותים × א"י/חו"ל (17,520 הרכבות)

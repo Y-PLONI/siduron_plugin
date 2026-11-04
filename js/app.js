@@ -44,7 +44,9 @@
     { id: 'mincha', he: 'מנחה', template: function () { return 'mincha'; } },
     { id: 'maariv', he: 'מעריב', template: function (n) { return 'maariv_' + n; } },
     { id: 'omer', he: 'ספירת העומר', template: function (n) { return 'sefirat_haomer_' + n; },
-      showIf: function () { return STATE.dayFlags && STATE.dayFlags.omerDay != null; } },
+      showIf: function () { var f = STATE.maarivFlags || STATE.dayFlags; return !!f && f.omerDay != null; } },
+    { id: 'slichot', he: 'סליחות',
+      showIf: function () { var S = window.SiduronServices; return !!(S && STATE.dayFlags && S.hasSlichot(STATE.nusach, STATE.dayFlags)); } },
     { id: 'extras', he: 'תוספות', extras: true },
   ];
 
@@ -232,13 +234,80 @@
     if (mode === 'yy') return g[0] + 'י' + marksOf(g[2]);
     return 'ה׳';
   }
+  // Much of the corpus (esp. the Shabbat texts from seforim.db) already writes the
+  // Name abbreviated as a plain ה׳ / ה' instead of the full skeleton, which the
+  // regex above never sees — so in every non-"source" mode it used to stay ה'.
+  // Convert those too, but only when it is clearly the Name: not a number/letter
+  // ("פרק ה'", "יום ה'", "אות ה'") and not part of a letter list ("ד' ה' ו'").
+  var ABBR_RE = /(^|[^א-ת֑-ׇ])([ובלכמש]{0,2})ה([׳'])(?![א-ת])/g;
+  var NOT_NAME_BEFORE = { 'פרק': 1, 'יום': 1, 'אות': 1, 'סימן': 1, 'סעיף': 1, 'שער': 1, 'חלק': 1,
+    'פסוק': 1, 'מזמור': 1, 'דף': 1, 'עמוד': 1, 'מספר': 1, 'כרך': 1, 'הלכה': 1, 'אותיות': 1,
+    // "ליל ה'" (ליל חמישי) וציטוטי מקרא "תהלים ה'", "שמות כד, ה'".
+    'ליל': 1, 'לילות': 1, 'תהלים': 1, 'תהילים': 1, 'בראשית': 1, 'שמות': 1, 'ויקרא': 1, 'במדבר': 1,
+    'דברים': 1, 'יהושע': 1, 'שופטים': 1, 'שמואל': 1, 'מלכים': 1, 'ישעיה': 1, 'ישעיהו': 1,
+    'ירמיה': 1, 'ירמיהו': 1, 'יחזקאל': 1, 'יואל': 1, 'עמוס': 1, 'עובדיה': 1, 'יונה': 1,
+    'מיכה': 1, 'נחום': 1, 'חבקוק': 1, 'צפניה': 1, 'זכריה': 1, 'מלאכי': 1, 'משלי': 1,
+    'איוב': 1, 'איכה': 1, 'קהלת': 1, 'אסתר': 1, 'דניאל': 1, 'נחמיה': 1 };
+  // "ה' בדים", "ה' פעמים" — a count of things, not the Name.
+  var COUNT_NOUN_AFTER = /^\s*(?:בדים|בדי|פעמים|ימים|ימי|שנים|שעות|דקות|ספרים|חומשי|מינים|ברכות|פסוקים|קולות|הקפות|תעניות|עינויים|אצבעות|עולמות|דברים|אותיות|תיבות|גבורות|סעיפים|פרקים|מזמורים|הושענות|ערבות)(?![א-ת])/;
+  var HEB_MONTH_AFTER = /^\s*ב(?:ניסן|אייר|איר|סיון|סיוון|תמוז|אב|אלול|תשרי|חשון|חשוון|מרחשון|כסלו|טבת|שבט|אדר)(?![א-ת])/;
+  // Is `w` a Hebrew numeral written in letters ("כד", "קיט", "ה")? Non-increasing values.
+  function isNumeralWord(w) {
+    if (!w || w.length > 4) return false;
+    var vals = { 'א': 1, 'ב': 2, 'ג': 3, 'ד': 4, 'ה': 5, 'ו': 6, 'ז': 7, 'ח': 8, 'ט': 9, 'י': 10,
+      'כ': 20, 'ל': 30, 'מ': 40, 'נ': 50, 'ס': 60, 'ע': 70, 'פ': 80, 'צ': 90, 'ק': 100, 'ר': 200,
+      'ש': 300, 'ת': 400 };
+    var prev = 1e9;
+    for (var i = 0; i < w.length; i++) {
+      var v = vals[w.charAt(i)];
+      if (!v || v > prev) return false;
+      prev = v;
+    }
+    return true;
+  }
+  function isNotNameWord(w) {
+    return !!(NOT_NAME_BEFORE[w] || NOT_NAME_BEFORE[w.replace(/^[ובלכמש]/, '')]);
+  }
+  function abbrIsNumeral(str, offset) {
+    var before = str.slice(Math.max(0, offset - 40), offset).replace(/<[^>]*>/g, ' ');
+    var after = str.slice(offset + 2, offset + 60).replace(/<[^>]*>/g, ' ').replace(/[֑-ׇ]/g, '');
+    if (/[א-ת][׳']\s*$/.test(before)) return true;                  // "ד' ה'" — a letter list
+    if (/\($/.test(before) && /^\s*\)/.test(after)) return true;    // "(ה')" — a bare letter in parens
+    if (HEB_MONTH_AFTER.test(after)) return true;                   // "ה' באייר" — a date
+    if (COUNT_NOUN_AFTER.test(after)) return true;                  // "ה' בדים" — five of something
+    // Verse citation "שמות כד, ה'" / "תהלים קיט, ה'": [book/section] [numeral][,:] ה'
+    var cm = /([א-ת֑-ׇ]+)\s+([א-ת֑-ׇ]{1,4})\s*[,:]\s*$/.exec(before);
+    if (cm) {
+      var book = cm[1].replace(/[֑-ׇ]/g, ''), num = cm[2].replace(/[֑-ׇ]/g, '');
+      if (isNotNameWord(book) && isNumeralWord(num)) return true;
+    }
+    if (/\d\s*[,:]\s*$/.test(before)) return true;                  // "24, ה'"
+    var m = /([א-ת֑-ׇ]+)\s*$/.exec(before);
+    if (!m) return false;
+    return isNotNameWord(m[1].replace(/[֑-ׇ]/g, ''));
+  }
+  function renderAbbrName(mode, pointed) {
+    if (mode === 'yy') return pointed ? 'יְיָ' : 'יי';
+    if (mode === 'yedovid') return pointed ? 'יְדֹוָד' : 'ידוד';
+    return 'ה׳';
+  }
   function applyDivineName(html) {
     var mode = STATE.divineName;
-    if (mode === 'source') return html;
-    return html.replace(TETRA_RE, function (m, offset, str) {
+    if (mode === 'source' || !html) return html;
+    html = html.replace(TETRA_RE, function (m, offset, str) {
       return hasThreeLettersBefore(str, offset) ? m : renderDivineName(m, mode);
     });
+    return html.replace(ABBR_RE, function (m, pre, prefix, _ap, offset, str) {
+      var at = offset + pre.length;
+      if (abbrIsNumeral(str, at + prefix.length)) return m;
+      // Vocalised surroundings → give the pointed form; unvocalised → plain letters.
+      var ctx = str.slice(Math.max(0, offset - 14), offset + m.length + 14).replace(/<[^>]*>/g, '');
+      return pre + prefix + renderAbbrName(mode, MARK_RE.test(ctx));
+    });
   }
+  // Plain-text variant for UI strings built outside the prayer HTML (nav list,
+  // titles, extras menu).
+  function divineText(s) { return applyDivineName(String(s == null ? '' : s)); }
 
   /* ────────────── Location (from Otzaria's selected city) ────────────── */
   // We no longer ask the user "are you in Israel?" — we read the city they
@@ -293,11 +362,25 @@
     var civilToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     var host = new Date(hostDate.getFullYear(), hostDate.getMonth(), hostDate.getDate());
     var diffDays = Math.round((host - civilToday) / 86400000);
+    // After midnight, before עלות השחר: the host's day rolled over at last evening's
+    // שקיעה and the calendar date has since caught up (diff 0) — still the night.
+    if (diffDays === 0) return nowMinutes(now) < alotMinutes(times);
     if (diffDays !== 1) return false;
     var sunset = minutesOfDay(times && (times.shkiah || times.sunset || times.seaLevelSunset));
     var nowM = now.getHours() * 60 + now.getMinutes();
     if (sunset == null) return nowM >= 17 * 60;      // no times → assume evening
     return nowM >= sunset - 5;
+  }
+  function nowMinutes(now) { return now.getHours() * 60 + now.getMinutes(); }
+  // עלות השחר in minutes: the host's own time when present, else sunrise − 72
+  // (the usual 72-minute approximation), else a flat 05:00 so the night/day
+  // boundary still exists in a standalone preview without times.
+  function alotMinutes(times) {
+    var t = times || {};
+    var a = minutesOfDay(t.alotHaShachar || t.alos72Zmanis || t.alos72Degrees || t.alotHashachar);
+    if (a != null) return a;
+    var sr = minutesOfDay(t.sunrise || t.netz || t.seaLevelSunrise);
+    return sr != null ? Math.max(0, sr - 72) : 5 * 60;
   }
   function minutesOfDay(v) {
     if (!v) return null;
@@ -333,7 +416,7 @@
 
   // Flags a given service is rendered against: ערבית follows the night it enters.
   function flagsForService(serviceId) {
-    return serviceId === 'maariv' ? (STATE.maarivFlags || STATE.dayFlags) : STATE.dayFlags;
+    return (serviceId === 'maariv' || serviceId === 'omer') ? (STATE.maarivFlags || STATE.dayFlags) : STATE.dayFlags;
   }
 
   // "מעריב · ליל שבת" — names the night, so the day model is visible rather than
@@ -355,8 +438,9 @@
 
   // Set both the in-content title and the compact header title (shown on scroll).
   function setTitle(t) {
-    var a = document.getElementById('hdr-title'); if (a) a.textContent = t || '';
-    var b = document.getElementById('hdr-svc'); if (b) b.textContent = t || '';
+    t = divineText(t);
+    var a = document.getElementById('hdr-title'); if (a) a.textContent = t;
+    var b = document.getElementById('hdr-svc'); if (b) b.textContent = t;
   }
 
   function userContext() {
@@ -438,7 +522,7 @@
       var lbl = ZMAN_ORDER[i][0], keys = ZMAN_ORDER[i][1], val = null;
       for (var k = 0; k < keys.length; k++) if (times[keys[k]] != null) { val = times[keys[k]]; break; }
       if (val == null) continue;
-      html += '<div class="zman"><span class="z-name">' + lbl + '</span><span class="z-val">' + val + '</span></div>';
+      html += '<div class="zman"><span class="z-name">' + lbl + '</span><span class="z-val">' + window.SiduronRender.esc(String(val)) + '</span></div>';
     }
     el.innerHTML = loc + (html ? '<div class="panel-card">' + html + '</div>' : '<div class="muted">זמני היום אינם זמינים</div>');
   }
@@ -446,14 +530,22 @@
   /* ────────────── Service tabs + rendering ────────────── */
   function renderTabs() {
     var bar = document.getElementById('tabs');
-    bar.innerHTML = '';
+    var mini = document.getElementById('mini-tabs');   // compact copy shown while scrolled
+    if (bar) bar.innerHTML = '';
+    if (mini) mini.innerHTML = '';
     SERVICES.forEach(function (s) {
       if (s.showIf && !s.showIf()) return;
-      var b = document.createElement('button');
-      b.className = 'tab' + (STATE.service === s.id ? ' active' : '');
-      b.textContent = s.he;
-      b.onclick = function () { openService(s.id); };
-      bar.appendChild(b);
+      function make(cls, host) {
+        if (!host) return;
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = cls + (STATE.service === s.id ? ' active' : '');
+        b.textContent = s.he;
+        b.onclick = function () { openService(s.id); };
+        host.appendChild(b);
+      }
+      make('tab', bar);
+      make('mini-tab', mini);
     });
   }
 
@@ -489,7 +581,9 @@
       var yomtovSvc = yomtovServiceKey(id, flags);
       var shabbatSvc = shabbatServiceKey(id, flags);
       var S = window.SiduronServices;
-      if (yomtovSvc && S && S.hasYomtov(STATE.nusach, yomtovSvc)) {
+      if (id === 'slichot') {
+        result = S.renderSlichot(STATE.nusach, flags);
+      } else if (yomtovSvc && S && S.hasYomtov(STATE.nusach, yomtovSvc)) {
         result = S.renderYomtov(STATE.nusach, yomtovSvc, flags);
       } else if (shabbatSvc && S && S.hasShabbat(STATE.nusach, shabbatSvc)) {
         result = S.renderShabbat(STATE.nusach, shabbatSvc, flags);
@@ -538,7 +632,7 @@
       // Menu of extras.
       setTitle('תוספות וברכות');
       STATE.nav = [];
-      contentEl.innerHTML = '<div class="extras-menu fade-in">' + window.SiduronExtras.renderMenu() + '</div>';
+      contentEl.innerHTML = '<div class="extras-menu fade-in">' + applyDivineName(window.SiduronExtras.renderMenu()) + '</div>';
       var cards = contentEl.querySelectorAll('[data-extra]');
       for (var i = 0; i < cards.length; i++) {
         cards[i].onclick = function () { STATE.extra = this.getAttribute('data-extra'); renderExtrasView(); };
@@ -583,7 +677,7 @@
     if (!el) return;
     if (!STATE.nav.length) { el.innerHTML = '<div class="muted">אין קטעים</div>'; return; }
     el.innerHTML = '<div class="panel-card">' + STATE.nav.map(function (n) {
-      return '<button class="nav-item" data-anchor="' + n.anchor + '">' + window.SiduronRender.esc(n.label) + '</button>';
+      return '<button class="nav-item" data-anchor="' + n.anchor + '">' + window.SiduronRender.esc(divineText(n.label)) + '</button>';
     }).join('') + '</div>';
     var btns = el.querySelectorAll('.nav-item');
     for (var i = 0; i < btns.length; i++) {
@@ -611,12 +705,23 @@
     var sameDay = STATE.date && now.toDateString() === STATE.date.toDateString();
     if (!sameDay || !times) return 'shacharit';
     function mins(v) { return minutesOfDay(v); }
-    var nowM = now.getHours() * 60 + now.getMinutes();
+    var nowM = nowMinutes(now);
     var chatzot = mins(times.chatzot || times.chatzos);
     var sunset = mins(times.shkiah || times.sunset || times.seaLevelSunset);
+    // שקיעה → עלות השחר = מעריב (the small hours after midnight included).
+    if (nowM < alotMinutes(times)) return 'maariv';
     if (chatzot != null && nowM < chatzot) return 'shacharit';
     if (sunset != null && nowM < sunset) return 'mincha';
+    if (chatzot == null && sunset == null) return nowM < 12 * 60 ? 'shacharit' : (nowM < 17 * 60 ? 'mincha' : 'maariv');
     return 'maariv';
+  }
+  // Is the host showing "now" — today, or the day it already rolled to at שקיעה?
+  // False when the user picked another date in the calendar: then the time of day
+  // says nothing about which prayer they want and the saved choice is kept.
+  function isLiveDay(now) {
+    now = now || new Date();
+    if (STATE.dayAdvanced) return true;
+    return !!STATE.date && now.toDateString() === STATE.date.toDateString();
   }
 
   /* ────────────── Settings panel ────────────── */
@@ -778,19 +883,27 @@
   // OneDrive-redirected desktop, an app too old for the API — stayed hidden.
   function shortcutErrorMessage(err) {
     var msg = rpcErrorText(err);
-    if (/permission_denied|create_shortcut/.test(msg)) {
-      return 'אין הרשאה ליצירת קיצור דרך. פתחו: הגדרות → כלים → סידורון → ניהול הרשאות, ' +
-        'ואשרו "יצירת קיצור דרך". אם ההרשאה כבר מסומנת — כבו והדליקו אותה כדי לשמור אותה מחדש.';
+    // The host's original text is always appended as the detail, so a wrong guess
+    // here can never hide the real cause.
+    var detail = msg ? '\n\nפרטי השגיאה מאוצריא: ' + msg : '';
+    // Specific causes first: a Desktop-folder failure must not be reported as a
+    // permission problem just because the message also mentions the shortcut API.
+    if (/target folder not found|folder not found|USERPROFILE|HOME not set|desktop.{0,20}(not found|missing)|PathNotFound|ENOENT|cannot find the path/i.test(msg)) {
+      return 'לא נמצאה תיקיית שולחן העבודה במחשב (לא קשור להרשאות). ' +
+        'לרוב שולחן העבודה מנותב ל-OneDrive או למיקום אחר שאוצריא אינה מוצאת. ' +
+        'צרו תיקיית "Desktop" בתיקיית המשתמש (או המתינו לסנכרון OneDrive) ונסו שוב; ' +
+        'לחלופין צרו קיצור ידנית עם הכתובת otzaria://open/plugin/com.moshenahari.siduron.' + detail;
     }
-    if (/unknown action|unknown domain|not ready|Unknown/i.test(msg)) {
-      return 'הגרסה של אוצריא המותקנת אצלכם אינה תומכת עדיין ביצירת קיצורי דרך. עדכנו את אוצריא ונסו שוב.';
+    if (/rate_limited|rate limit/i.test(msg)) return 'יותר מדי בקשות ברצף. המתינו רגע ונסו שוב.' + detail;
+    if (/unknown action|unknown domain|unknown method|not ready|not implemented|method not found/i.test(msg)) {
+      return 'הגרסה של אוצריא המותקנת אצלכם אינה תומכת עדיין ביצירת קיצורי דרך. עדכנו את אוצריא ונסו שוב.' + detail;
     }
-    if (/target folder not found/.test(msg)) {
-      return 'לא נמצאה תיקיית שולחן העבודה במחשב (למשל כשהיא מנותבת ל-OneDrive). ' +
-        'צרו את התיקייה או נסו שוב לאחר סנכרון OneDrive.';
+    if (/permission[_ ]denied|not granted|ui\.create_shortcut/i.test(msg)) {
+      return 'אוצריא דיווחה שאין הרשאה ליצירת קיצור דרך. פתחו: הגדרות → כלים → סידורון → ניהול הרשאות, ' +
+        'ואשרו "יצירת קיצור דרך". אם ההרשאה כבר מסומנת — כבו והדליקו אותה ונסו שוב. ' +
+        'אם השגיאה חוזרת למרות ההרשאה, זו תקלה בצד אוצריא ולא בתוסף.' + detail;
     }
-    if (/rate_limited/.test(msg)) return 'יותר מדי בקשות ברצף. המתינו רגע ונסו שוב.';
-    return 'לא ניתן היה ליצור קיצור דרך' + (msg ? ' (' + msg + ')' : '') + '.';
+    return 'לא ניתן היה ליצור קיצור דרך.' + detail;
   }
   async function createShortcut() {
     var btn = document.getElementById('set-shortcut');
@@ -804,6 +917,10 @@
       call('ui.showSuccess', { message: 'נוצר קיצור דרך לסידורון בשולחן העבודה.' });
     } else if (res && res.created === false) {
       // User dismissed the host's confirm dialog — nothing to do.
+    } else if (!err) {
+      // The host answered success without a `created` flag (older build) — it did
+      // not fail, so don't report a failure.
+      call('ui.showSuccess', { message: 'הבקשה ליצירת קיצור דרך נשלחה לאוצריא.' });
     } else {
       call('ui.showError', { message: shortcutErrorMessage(err) });
     }
@@ -981,8 +1098,12 @@
       applyWidth();
       await refreshDate();
       if (!hasOtzaria()) injectDevBar();
-      // Auto-pick the service by time of day, unless one was saved.
-      if (!STATE.service) STATE.service = pickServiceByTime(STATE.times);
+      // Open on the prayer that fits the time of day (עלות השחר–חצות שחרית,
+      // חצות–שקיעה מנחה, שקיעה–עלות השחר מעריב) whenever the host shows "now".
+      // When the user picked another date in the calendar the time of day means
+      // nothing, so the remembered service is kept (and the time pick is only the
+      // fallback when nothing was saved).
+      if (isLiveDay() || !STATE.service) STATE.service = pickServiceByTime(STATE.times);
       renderTabs();
       buildSettings();
       openService(STATE.service || 'shacharit');
