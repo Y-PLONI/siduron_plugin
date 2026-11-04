@@ -63,5 +63,17 @@ check('full divine name in source', /יְהֹוָה|יהוה/.test(bmReg));
 const ykk = vm.runInContext(`SiduronCalendar.flagsFor(new Date("2026-01-18T08:00:00"),${JSON.stringify(base)}).flags.indexOf('yom_kippur_katan')>=0`, ctx);
 check('yom_kippur_katan flag detected (Erev RC Shvat, 18 Jan 2026)', ykk);
 
+// תפילות בכניסה וביציאה מבית המדרש (ברכות כ"ח ע"ב) — בכל הנוסחים, אותו טקסט.
+check('בית המדרש: שני הפריטים בתפריט עם הכותרות', items.some(i => i.id === 'tefila_kenisa_beit_midrash' && i.title === 'תפילה בכניסה לבית המדרש') &&
+  items.some(i => i.id === 'tefila_yetzia_beit_midrash' && i.title === 'תפילה ביציאה מבית המדרש'));
+const bmTexts = ['ashkenaz', 'sfard', 'edot_mizrach'].map(function (n) {
+  return [renderExtra('tefila_kenisa_beit_midrash', REGDAY, n).html, renderExtra('tefila_yetzia_beit_midrash', REGDAY, n).html];
+});
+check('בית המדרש: כניסה ויציאה מוצגות (טקסט ארוך, שונים זה מזה) בכל הנוסחים',
+  bmTexts.every(p => p[0].length > 600 && p[1].length > 600 && p[0] !== p[1]));
+check('בית המדרש: אותו טקסט בשלושת הנוסחים', bmTexts.every(p => p[0] === bmTexts[0][0] && p[1] === bmTexts[0][1]));
+check('בית המדרש: אין שאריות תחביר ויקי', bmTexts.every(p => !/[{}\[\]|]|\[\[|קטגוריה/.test(p[0] + p[1])));
+
+
 console.log(`\n=== EXTRAS: ${fail === 0 ? 'PASS' : 'FAIL'} (${pass} passed, ${fail} failed) ===`);
 process.exit(fail === 0 ? 0 : 1);

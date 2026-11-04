@@ -480,8 +480,35 @@
     return renderSegs(segs, dayFlags);
   }
 
+  // Slichot (נוסח אשכנז בלבד) — window.SIDURON_SLICHOT, built by tools/build-slichot.js.
+  // The item is picked from the slichot_* day flags (js/calendar.js); null when
+  // today has no slichot text (other nuschaot, other days, ימי עשי"ת א'/ו'/ז').
+  var SLICHOT_DOW = ['day_sunday', 'day_monday', 'day_tuesday', 'day_wednesday', 'day_thursday', 'day_friday'];
+  var SLICHOT_AYT = { slichot_ayt_mon: 'ayt_mon', slichot_ayt_tue: 'ayt_tue', slichot_ayt_wed: 'ayt_wed', slichot_ayt_thu: 'ayt_thu' };
+  function slichotId(nusach, dayFlags) {
+    var d = global.SIDURON_SLICHOT;
+    if (nusach !== 'ashkenaz' || !d || !d.ashkenaz) return null;
+    var hasF = makeHas(dayFlags), id = null, i;
+    if (hasF('slichot_erev_rh')) id = 'erev_rosh_hashana';
+    else if (hasF('slichot_gedalia')) id = 'tzom_gedalia';
+    else if (hasF('slichot_erev_yk')) id = 'erev_yom_kippur';
+    else if (hasF('slichot_elul')) {
+      for (i = 0; i < SLICHOT_DOW.length; i++) if (hasF(SLICHOT_DOW[i])) id = 'day' + (i + 1);
+    } else {
+      for (var k in SLICHOT_AYT) if (hasF(k)) id = SLICHOT_AYT[k];
+    }
+    return id && d.ashkenaz[id] ? id : null;
+  }
+  function hasSlichot(nusach, dayFlags) { return !!slichotId(nusach, dayFlags); }
+  function renderSlichot(nusach, dayFlags) {
+    var id = slichotId(nusach, dayFlags);
+    if (!id) return null;
+    return renderSegs(global.SIDURON_SLICHOT.ashkenaz[id], dayFlags);
+  }
+
   global.SiduronServices = {
     render: render, has: has,
+    renderSlichot: renderSlichot, hasSlichot: hasSlichot, slichotId: slichotId,
     renderShabbat: renderShabbat, hasShabbat: hasShabbat,
     renderYomtov: renderYomtov, hasYomtov: hasYomtov,
     _evalTag: evalTag,

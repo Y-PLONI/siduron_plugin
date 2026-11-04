@@ -24,7 +24,7 @@ const withMinyan = !/^(nominyan|no-minyan|yachid)$/i.test(process.argv[5] || '')
 const ctx = vm.createContext({ console });
 ctx.window = ctx;
 for (const f of ['vendor/hebcal.js', 'data/siddur-data.js', 'data/services-data.js',
-  'data/shabbat-data.js', 'js/calendar.js', 'js/assembler.js', 'js/render.js', 'js/services.js']) {
+  'data/shabbat-data.js', 'data/slichot-data.js', 'js/calendar.js', 'js/assembler.js', 'js/render.js', 'js/services.js']) {
   vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), ctx, { filename: f });
 }
 const uc = { nusach: nusach, gender: 'male', isInIsrael: true, withMinyan: withMinyan, purimDate: 'both' };

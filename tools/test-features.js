@@ -105,7 +105,7 @@ if (rows.length) {
 section('2. תפילה ללא מניין');
 const svcCtx = vm.createContext({ console });
 svcCtx.window = svcCtx;
-['data/services-data.js', 'data/shabbat-data.js', 'js/services.js'].forEach(f =>
+['data/services-data.js', 'data/shabbat-data.js', 'data/slichot-data.js', 'js/services.js'].forEach(f =>
   vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), svcCtx));
 const SVC = svcCtx.SiduronServices;
 const CORPORA = {
@@ -257,7 +257,7 @@ const win = dom.window, doc = win.document;
 const errors = [];
 win.addEventListener('error', e => errors.push(String(e.error && e.error.stack || e.message)));
 // jsdom does not fetch <script src> — inject index.html's scripts in order.
-['vendor/hebcal.js', 'data/siddur-data.js', 'data/services-data.js', 'data/shabbat-data.js',
+['vendor/hebcal.js', 'data/siddur-data.js', 'data/services-data.js', 'data/shabbat-data.js', 'data/slichot-data.js',
   'data/extras-data.js', 'data/locations.js', 'js/calendar.js', 'js/assembler.js', 'js/render.js',
   'js/services.js', 'js/extras.js', 'js/app.js'].forEach(f => {
     const s = doc.createElement('script');
@@ -572,7 +572,7 @@ setTimeout(async function () {
       on: (topic, fn) => { if (topic === 'plugin.boot') bootHandler = fn; },
       off() {},
     };
-    ['vendor/hebcal.js', 'data/siddur-data.js', 'data/services-data.js', 'data/shabbat-data.js',
+    ['vendor/hebcal.js', 'data/siddur-data.js', 'data/services-data.js', 'data/shabbat-data.js', 'data/slichot-data.js',
       'data/extras-data.js', 'data/locations.js', 'js/calendar.js', 'js/assembler.js', 'js/render.js',
       'js/services.js', 'js/extras.js', 'js/app.js'].forEach(f => {
         const s = d2.createElement('script');

@@ -295,6 +295,7 @@
     };
 
     addDayIdentification(c, date, ctx, yt, f);
+    addSlichot(c, f);
     addSeasonFlags(c, date, ctx, yt, f);
     addTachanun(c, f);
     if (f.has(DF.skipTachanun)) f.add(DF.skipLamenatzeach);
@@ -433,6 +434,28 @@
     // מוצאי שבת: ערבית של יום ראשון *נכנסת* במוצאי שבת (שבת תמיד קודמת לו),
     // ולכן אתה חוננתנו / ויהי נועם / הבדלה נגזרים מהיום ולא מהיום שלפניו.
     if (dowMon === 7) f.add(DF.motzaeiShabbat);         // Sunday
+  }
+
+  // ── סליחות (נוסח אשכנז/ליטא; הנוסחים האחרים אינם משתמשים בדגלים אלה) ──
+  // slichot_elul: מהיום-ראשון שלפני ר"ה (אם ר"ה חל ביום ב'/ג' — ביום ראשון של
+  // השבוע הקודם, כך שיהיו לפחות ארבעה ימי סליחות) ועד ערב ר"ה, ללא שבת, וללא
+  // ערב ר"ה עצמו (slichot_erev_rh). עשי"ת: צום גדליה (slichot_gedalia), ימים
+  // ב'–ה' (slichot_ayt_mon..thu; ג'–ח' בתשרי בלבד), ערב יה"כ (slichot_erev_yk).
+  function addSlichot(c, f) {
+    var m = c.month, d = c.day, dow = c.dowMon;
+    if (m === M.ELUL) {
+      var abs = c.hd.abs();
+      var rh = new H.HDate(1, M.TISHREI, c.year + 1);
+      var rhAbs = rh.abs(), rhJs = rh.getDay();               // 0=Sun … 6=Sat
+      var start = rhAbs - (rhJs === 0 ? 7 : rhJs);            // the Sunday before ר"ה
+      if (rhJs === 1 || rhJs === 2) start -= 7;
+      if (abs === rhAbs - 1) f.add('slichot_erev_rh');
+      else if (abs >= start && abs < rhAbs && dow !== 6) f.add('slichot_elul');
+    } else if (m === M.TISHREI) {
+      if (f.has(DF.fastGedalia)) f.add('slichot_gedalia');
+      else if (d >= 3 && d <= 8 && dow >= 1 && dow <= 4) f.add(['', 'slichot_ayt_mon', 'slichot_ayt_tue', 'slichot_ayt_wed', 'slichot_ayt_thu'][dow]);
+      else if (f.has(DF.erevYomKippur)) f.add('slichot_erev_yk');
+    }
   }
 
   function addPurim(c, ctx, yt, f) {

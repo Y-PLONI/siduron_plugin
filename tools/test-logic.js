@@ -10,7 +10,7 @@ const ROOT = path.resolve(__dirname, '..');
 const ctx = vm.createContext({ console: { log() {} } });
 ctx.window = ctx;
 for (const f of ['vendor/hebcal.js', 'data/siddur-data.js', 'data/services-data.js',
-  'data/shabbat-data.js', 'js/calendar.js', 'js/assembler.js', 'js/services.js']) {
+  'data/shabbat-data.js', 'data/slichot-data.js', 'js/calendar.js', 'js/assembler.js', 'js/services.js']) {
   vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), ctx, { filename: f });
 }
 
@@ -341,6 +341,63 @@ console.log('\n── הושענות (data-overrides/hoshanot_*.json) ──');
     return ev('sukkotDay3', function (f) { return f === 'sukkot_day_3'; }) === true &&
       ev('sukkotDay3', function (f) { return f === 'sukkot_day_4'; }) === false;
   })());
+})();
+
+
+console.log('\n── סליחות (אשכנז): אלול, ערב ר"ה, עשי"ת ──');
+(function () {
+  const iso = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  const mk = (day, n, over) => `var df=SiduronCalendar.flagsFor(new Date(${JSON.stringify(day + 'T12:00:00')}),${JSON.stringify(Object.assign({}, BASE, { nusach: n }, over || {}))});`;
+  const sid = (day, n, over) => vm.runInContext(`(function(){${mk(day, n, over)}return SiduronServices.slichotId(${JSON.stringify(n)},df);})()`, ctx);
+  const html = (day, n, over) => vm.runInContext(`(function(){${mk(day, n, over)}var r=SiduronServices.renderSlichot(${JSON.stringify(n)},df);return r?r.html:null;})()`, ctx);
+  const DATA = vm.runInContext('SIDURON_SLICHOT.ashkenaz', ctx);
+  // oracle: expected slichot item per date, from calendar facts only
+  const DOWID = ['day1', 'day2', 'day3', 'day4', 'day5', 'day6'];     // Sun..Fri
+  const AYT = { 1: 'ayt_mon', 2: 'ayt_tue', 3: 'ayt_wed', 4: 'ayt_thu' };
+  const bad = [], rhDows = {};
+  let total = 0, shown = 0;
+  for (let y = 2021; y <= 2031; y++) {
+    let rh = null;
+    for (let d = new Date(y, 8, 1); d < new Date(y, 9, 12); d.setDate(d.getDate() + 1)) {
+      if (flagsFor(iso(d)).flags.indexOf('rosh_hashanah') >= 0) { rh = new Date(d); break; }
+    }
+    if (!rh) { bad.push('no RH ' + y); continue; }
+    rhDows[rh.getDay()] = 1;
+    const start = new Date(rh); start.setDate(start.getDate() - (rh.getDay() === 0 ? 7 : rh.getDay()));
+    if (rh.getDay() === 1 || rh.getDay() === 2) start.setDate(start.getDate() - 7);
+    for (let d = new Date(rh.getFullYear(), rh.getMonth(), rh.getDate() - 45); d < new Date(rh.getFullYear(), rh.getMonth(), rh.getDate() + 20); d.setDate(d.getDate() + 1)) {
+      const day = iso(d), f = flagsFor(day).flags, dow = d.getDay();
+      const before = Math.round((rh - d) / 864e5);
+      let exp = null;
+      if (before === 1) exp = 'erev_rosh_hashana';
+      else if (d >= start && before > 1) exp = dow === 6 ? null : DOWID[dow];
+      else if (f.indexOf('fast_gedalia') >= 0) exp = 'tzom_gedalia';
+      else if (f.indexOf('erev_yom_kippur') >= 0) exp = 'erev_yom_kippur';
+      else if (f.indexOf('aseret_yemei_teshuva') >= 0 && f.indexOf('rosh_hashanah') < 0 && f.indexOf('yom_kippur') < 0 && f.indexOf('shabbat') < 0 && AYT[dow]) exp = AYT[dow];
+      total++; if (exp) shown++;
+      const got = sid(day, 'ashkenaz');
+      if (got !== exp) bad.push(day + ' exp ' + exp + ' got ' + got);
+      if (sid(day, 'sfard') !== null || sid(day, 'edot_mizrach') !== null) bad.push(day + ' other nusach');
+    }
+  }
+  check('סליחות: כל התאריכים סביב ר"ה 2021–2031 תואמים לכללים', bad.length === 0, bad.slice(0, 5).join(' | '));
+  check('נבדקו ר"ה בכל ארבעת הימים האפשריים (ב\'/ג\'... )', Object.keys(rhDows).length >= 3, JSON.stringify(Object.keys(rhDows)));
+  check('סליחות רק בימים הרלוונטיים (' + shown + ' מתוך ' + total + ')', shown > 50 && shown < total / 2);
+  check('ר"ה ב\' (26.9.2022): מתחילים ביום ראשון 18.9', sid('2022-09-17', 'ashkenaz') === null && sid('2022-09-18', 'ashkenaz') === 'day1' && sid('2022-09-23', 'ashkenaz') === 'day6' && sid('2022-09-24', 'ashkenaz') === null && sid('2022-09-25', 'ashkenaz') === 'erev_rosh_hashana');
+  check('ר"ה ג\' (7.9.2021): מתחילים ביום ראשון 29.8, ערב ר"ה 6.9', sid('2021-08-28', 'ashkenaz') === null && sid('2021-08-29', 'ashkenaz') === 'day1' && sid('2021-09-06', 'ashkenaz') === 'erev_rosh_hashana');
+  check('ר"ה שבת (12.9.2026): 6.9 עד 11.9 (ערב ר"ה ביום ו\')', sid('2026-09-06', 'ashkenaz') === 'day1' && sid('2026-09-10', 'ashkenaz') === 'day5' && sid('2026-09-11', 'ashkenaz') === 'erev_rosh_hashana' && sid('2026-09-05', 'ashkenaz') === null);
+  check('ר"ה ה\' (3.10.2024): 29.9 ראשון עד ערב ר"ה 2.10', sid('2024-09-29', 'ashkenaz') === 'day1' && sid('2024-10-02', 'ashkenaz') === 'erev_rosh_hashana' && sid('2024-09-28', 'ashkenaz') === null);
+  check('עשי"ת 5785: צום גדליה 6.10, ב\'–ג\' בסליחות, ערב יה"כ 11.10 (ולא ו\'/ז\')', sid('2024-10-04', 'ashkenaz') === null && sid('2024-10-05', 'ashkenaz') === null && sid('2024-10-06', 'ashkenaz') === 'tzom_gedalia' && sid('2024-10-07', 'ashkenaz') === 'ayt_mon' && sid('2024-10-08', 'ashkenaz') === 'ayt_tue' && sid('2024-10-09', 'ashkenaz') === 'ayt_wed' && sid('2024-10-10', 'ashkenaz') === 'ayt_thu' && sid('2024-10-11', 'ashkenaz') === 'erev_yom_kippur');
+  check('שאר ימות השנה: אין סליחות', sid('2026-01-15', 'ashkenaz') === null && sid('2026-04-10', 'ashkenaz') === null && sid('2026-10-21', 'ashkenaz') === null);
+  // text: only today's slichot
+  const texts = id => DATA[id].filter(s => s.kind === 'text').map(s => plain(s.text)).filter(x => x.length > 60);
+  const uniq = (a, b) => texts(a).filter(t => texts(b).indexOf(t) < 0)[0];
+  const h3 = plain(html('2026-09-08', 'ashkenaz')), h2 = plain(html('2026-09-07', 'ashkenaz'));
+  const u3 = uniq('day3', 'day2'), u2 = uniq('day2', 'day3');
+  check('סליחות יום ג\' אלול: טקסט יום ג\' בלבד (לא של יום ב\')', !!u3 && !!u2 && h3.indexOf(u3) >= 0 && h3.indexOf(u2) < 0 && h2.indexOf(u2) >= 0 && h2.indexOf(u3) < 0);
+  check('אין render סליחות בספרד/עדות המזרח', html('2026-09-08', 'sfard') === null && html('2026-09-08', 'edot_mizrach') === null);
+  const noM = plain(html('2026-09-08', 'ashkenaz', { withMinyan: false }));
+  check('ללא מניין: טקסט הסליחות נשמר (המסנן הקיים חל)', noM.length > 5000 && noM.length < h3.length, noM.length + '/' + h3.length);
 })();
 
 console.log('\n=== LOGIC: ' + (fail ? 'FAIL' : 'PASS') + ' (' + pass + ' passed, ' + fail + ' failed) ===');

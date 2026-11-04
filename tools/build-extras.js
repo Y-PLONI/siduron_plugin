@@ -68,6 +68,11 @@ const EXTRAS = [
     files: { ashkenaz: 'veyiten' } },
   { id: 'tefila_lecholeh', title: 'תפילה לרפואת חולה', category: 'תפילות',
     files: { ashkenaz: 'a_doctor' } },
+  // ── Not from Tfilon: ready-made text in tools/data-overrides/beit_midrash.json
+  // (ויקיטקסט; ברכות כ"ח ע"ב), the same for all nuschaot. Also patchable into the
+  // checked-in data with tools/apply-beit-midrash.js (no corpus needed). ──────
+  { id: 'tefila_kenisa_beit_midrash', title: 'תפילה בכניסה לבית המדרש', category: 'תפילות', override: 'beit_midrash' },
+  { id: 'tefila_yetzia_beit_midrash', title: 'תפילה ביציאה מבית המדרש', category: 'תפילות', override: 'beit_midrash' },
 ];
 
 const NIKUD = /[֑-ׇ]/g;
@@ -160,7 +165,10 @@ for (const ex of EXTRAS) {
   const byNusach = {};
   for (const nusach of ['ashkenaz', 'sfard', 'edot_mizrach']) {
     let segs;
-    if (ex.smartSiddur) segs = smartSiddurSegment(ex.smartSiddur, nusach);
+    if (ex.override) {
+      const ov = JSON.parse(fs.readFileSync(path.join(__dirname, 'data-overrides', ex.override + '.json'), 'utf8')).items;
+      segs = ov.find(x => x.id === ex.id).segments;
+    } else if (ex.smartSiddur) segs = smartSiddurSegment(ex.smartSiddur, nusach);
     else {
       const file = ex.files[nusach];
       segs = [];

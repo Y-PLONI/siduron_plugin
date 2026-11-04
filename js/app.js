@@ -45,6 +45,8 @@
     { id: 'maariv', he: 'מעריב', template: function (n) { return 'maariv_' + n; } },
     { id: 'omer', he: 'ספירת העומר', template: function (n) { return 'sefirat_haomer_' + n; },
       showIf: function () { var f = STATE.maarivFlags || STATE.dayFlags; return !!f && f.omerDay != null; } },
+    { id: 'slichot', he: 'סליחות',
+      showIf: function () { var S = window.SiduronServices; return !!(S && STATE.dayFlags && S.hasSlichot(STATE.nusach, STATE.dayFlags)); } },
     { id: 'extras', he: 'תוספות', extras: true },
   ];
 
@@ -576,7 +578,9 @@
       var yomtovSvc = yomtovServiceKey(id, flags);
       var shabbatSvc = shabbatServiceKey(id, flags);
       var S = window.SiduronServices;
-      if (yomtovSvc && S && S.hasYomtov(STATE.nusach, yomtovSvc)) {
+      if (id === 'slichot') {
+        result = S.renderSlichot(STATE.nusach, flags);
+      } else if (yomtovSvc && S && S.hasYomtov(STATE.nusach, yomtovSvc)) {
         result = S.renderYomtov(STATE.nusach, yomtovSvc, flags);
       } else if (shabbatSvc && S && S.hasShabbat(STATE.nusach, shabbatSvc)) {
         result = S.renderShabbat(STATE.nusach, shabbatSvc, flags);
