@@ -201,3 +201,11 @@ for nusach in out:
     for svc, segs in out[nusach].items():
         hdrs = [s['text'] for s in segs if s['kind'] == 'header']
         print('  %-13s %-10s segs=%-4d headers=%d' % (nusach, svc, len(segs), len(hdrs)))
+
+# Post-processing kept in tracked scripts (so a fresh extraction keeps them):
+#   apply-shabbat-fixes.js — על הנסים לפי חנוכה/פורים, לדוד ה' אורי בעונתו,
+#                             ברכי נפשי בשבת ר"ח (אשכנז), הסרת מי שברך לצה"ל/לשבויים
+#   apply-hoshanot.js      — הושענות לשבת חוה"מ (וגם בחול, ב-services-data.js)
+import subprocess
+for script in ('apply-shabbat-fixes.js', 'apply-hoshanot.js'):
+    subprocess.run(['node', os.path.join(ROOT, 'tools', script)], check=True)

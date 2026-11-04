@@ -37,13 +37,19 @@ node tools/apply-beit-midrash.js   # תפילות כניסה/יציאה מבית
 
 **הערה:** שתי תפילות בית המדרש (`tefila_kenisa_beit_midrash`, `tefila_yetzia_beit_midrash`) אינן מ-tfilon אלא מ-`tools/data-overrides/beit_midrash.json`; `build-extras.js` קורא אותן (שדה `override`), ו-`tools/apply-beit-midrash.js` מחיל אותן idempotent על הנתונים שבריפו.
 
-**הערה:** `data/shabbat-data.js` נערך ישירות (לא דרך `tools/data-overrides/`, שמיועד רק לקטעים משותפים של `build-data.js`): נוספו תנאי `cond` (`chanuka`/`purim`) לקטעי "על הנסים" והוספת "ברכי נפשי" (`rh`) לשחרית אשכנז. הרצה מחדש של `tools/extract-shabbat.py` תדרוס אותם — יש להחיל מחדש בסקריפט.
+**עיבוד-המשך (post-processing) — idempotent, ומורץ אוטומטית:**
+- `tools/apply-shabbat-fixes.js` על `data/shabbat-data.js` (מורץ בסוף `tools/extract-shabbat.py`): "על הנסים" מפוצל לחנוכה (`chanuka`) ולפורים (`purim`), "לדוד ה' אורי" בעונתו (`ledavid`), "ברכי נפשי" בשבת ר"ח באשכנז (`rh`, מ-`tools/data-overrides/barchi_nafshi_ashkenaz.json`), והסרת "מי שברך" לחיילי צה"ל ולשבויים.
+- `tools/apply-hoshanot.js` על `data/services-data.js` ו-`data/shabbat-data.js` (מורץ בסוף `build-services.js` ו-`extract-shabbat.py`): הושענות לכל יום בחוה"מ, לשבת ולהושענא רבה מ-`tools/data-overrides/hoshanot_*.json`. באשכנז נבחרת ההושענא לפי היום בשבוע (תג `dowNNN`); בעדות המזרח הושענות לשבת רק בחו"ל.
+- תיקוני נוסח בתוספות (כגון תפילת הדרך בעדות המזרח) — `TEXT_FIXES` ב-`tools/build-extras.js`.
+
+**סליחות:** בספר הסליחות (אשכנז/ליטא) הימים ממוספרים לפי **סדר ימי הסליחות** ולא לפי ימות השבוע ("ליום שביעי" — שבת אינה נמנית): `day1`…`day7` באלול, ו-`ayt_2`…`ayt_5` אחרי צום גדליה ("ליום שני…חמישי דעשי"ת"). הבחירה בדגלי `slichot_elul_day_N` / `slichot_ayt_N` ב-`js/calendar.js`.
 
 `vendor/hebcal.js` הופק מ-`@hebcal/core@5.10.1` (`dist/bundle.min.js`).
 
 ## בדיקות
 
 ```bash
+node tools/test-logic.js         # רגרסיות הלכתיות: חנוכה, טל ומטר, אבינו מלכנו, הושענות, סליחות
 node tools/test-calendar.js      # flags על תאריכים מייצגים
 node tools/test-assemble.js      # הרכבה מקצה-לקצה
 node tools/test-fuzz.js          # שנתיים × 3 נוסחים × 4 שירותים × א"י/חו"ל (17,520 הרכבות)

@@ -77,6 +77,14 @@ const EXTRAS = [
 
 const NIKUD = /[֑-ׇ]/g;
 
+// Text corrections to the Tfilon corpus: { itemId: { nusach: [[from, to], …] } }.
+const TEXT_FIXES = {
+  // תפילת הדרך (עדות המזרח): הנוסח המקובל (ברכות כ"ט ע"ב) — "ואורב ולסטים וחיות
+  // רעות בדרך", במקום התוספת המודרנית "ומתאונות דרכים, ומסכנת מחבלים".
+  tefilat_haderech: { edot_mizrach: [["בַּדֶּרֶךְ, וּמִתּאוּנוֹת דְּרָכִים, וּמִסַּכָּנַת מְחַבְּלִים, וּמִכָל מִינֵי פֻרְעָנֻיּוֹת הַמִּתְרַגְּשׁוֹת וּבָאוֹת לָעוֹלָם",
+    "וְלִסְטִים וְחַיּוֹת רָעוֹת בַּדֶּרֶךְ, וּמִכָּל מִינֵי פֻרְעָנֻיּוֹת הַמִּתְרַגְּשׁוֹת וּבָאוֹת לָעוֹלָם"]] },
+};
+
 // ── Navigation sections ──────────────────────────────────────────────────────
 // Inject jump-to-section headers (kind:'header') into long prayers so the
 // "קפיצה לקטע" panel can navigate them. Each section is anchored to a segment
@@ -176,6 +184,20 @@ for (const ex of EXTRAS) {
       if (!segs.length) segs = null;
     }
     if (segs) segs = segs.filter(seg => !isForbidden(seg.text));
+    // A bare instruction at the very top that only repeats the item's title (e.g.
+    // "אבינו מלכנו" right under the אבינו מלכנו heading) is a duplicate — drop it.
+    if (segs) {
+      const firstText = segs.findIndex(seg => seg.kind !== 'instruction' && seg.kind !== 'header');
+      segs = segs.filter((seg, i) => !((firstText < 0 || i < firstText) && seg.kind === 'instruction' &&
+        String(seg.text).replace(/<[^>]*>/g, '').replace(NIKUD, '').trim() === ex.title));
+    }
+    if (segs && TEXT_FIXES[ex.id] && TEXT_FIXES[ex.id][nusach]) {
+      segs = segs.map(seg => {
+        let t = seg.text;
+        TEXT_FIXES[ex.id][nusach].forEach(fx => { t = t.split(fx[0]).join(fx[1]); });
+        return t === seg.text ? seg : Object.assign({}, seg, { text: t });
+      });
+    }
     if (segs && segs.length) segs = insertSections(ex.id, segs);
     if (segs && segs.length) byNusach[nusach] = segs;
   }

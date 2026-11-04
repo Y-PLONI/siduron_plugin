@@ -437,24 +437,41 @@
   }
 
   // ── סליחות (נוסח אשכנז/ליטא; הנוסחים האחרים אינם משתמשים בדגלים אלה) ──
-  // slichot_elul: מהיום-ראשון שלפני ר"ה (אם ר"ה חל ביום ב'/ג' — ביום ראשון של
-  // השבוע הקודם, כך שיהיו לפחות ארבעה ימי סליחות) ועד ערב ר"ה, ללא שבת, וללא
-  // ערב ר"ה עצמו (slichot_erev_rh). עשי"ת: צום גדליה (slichot_gedalia), ימים
-  // ב'–ה' (slichot_ayt_mon..thu; ג'–ח' בתשרי בלבד), ערב יה"כ (slichot_erev_yk).
+  // בספר הסליחות (אשכנז/ליטא) הימים ממוספרים לפי סדר ימי הסליחות, לא לפי ימות
+  // השבוע: "ליום ראשון" … "ליום שביעי" = היום ה-1…7 של הסליחות (שבת אינה נמנית —
+  // לכן יש "ליום שביעי"), ו"ליום שני…חמישי דעשי"ת" = היום ה-2…5 של סליחות עשי"ת,
+  // כשצום גדליה הוא הראשון (בין צום גדליה לערב יה"כ יש תמיד בדיוק 4 ימי סליחות).
+  //  • slichot_elul + slichot_elul_day_N: מהיום-ראשון שלפני ר"ה (אם ר"ה חל ביום
+  //    ב'/ג' — מיום ראשון של השבוע הקודם, כדי שיהיו לפחות ארבעה ימי סליחות) ועד
+  //    ערב ר"ה, ללא שבת וללא ערב ר"ה עצמו (slichot_erev_rh).
+  //  • עשי"ת: צום גדליה (slichot_gedalia), ימי עשי"ת (slichot_ayt_N, N=2..5),
+  //    ערב יה"כ (slichot_erev_yk).
+  // מחזיר כמה ימים שאינם שבת יש בטווח [from, to] (absolute days).
+  function weekdaysBetween(from, to) {
+    var n = 0;
+    for (var a = from; a <= to; a++) if (new H.HDate(a).getDay() !== 6) n++;
+    return n;
+  }
   function addSlichot(c, f) {
-    var m = c.month, d = c.day, dow = c.dowMon;
+    var m = c.month, d = c.day, dow = c.dowMon, abs = c.hd.abs();
+    if (dow === 6) return;                                    // אין סליחות בשבת
     if (m === M.ELUL) {
-      var abs = c.hd.abs();
       var rh = new H.HDate(1, M.TISHREI, c.year + 1);
       var rhAbs = rh.abs(), rhJs = rh.getDay();               // 0=Sun … 6=Sat
       var start = rhAbs - (rhJs === 0 ? 7 : rhJs);            // the Sunday before ר"ה
       if (rhJs === 1 || rhJs === 2) start -= 7;
       if (abs === rhAbs - 1) f.add('slichot_erev_rh');
-      else if (abs >= start && abs < rhAbs && dow !== 6) f.add('slichot_elul');
+      else if (abs >= start && abs < rhAbs) {
+        f.add('slichot_elul');
+        f.add('slichot_elul_day_' + weekdaysBetween(start, abs));
+      }
     } else if (m === M.TISHREI) {
-      if (f.has(DF.fastGedalia)) f.add('slichot_gedalia');
-      else if (d >= 3 && d <= 8 && dow >= 1 && dow <= 4) f.add(['', 'slichot_ayt_mon', 'slichot_ayt_tue', 'slichot_ayt_wed', 'slichot_ayt_thu'][dow]);
-      else if (f.has(DF.erevYomKippur)) f.add('slichot_erev_yk');
+      if (f.has(DF.fastGedalia)) { f.add('slichot_gedalia'); return; }
+      if (f.has(DF.erevYomKippur)) { f.add('slichot_erev_yk'); return; }
+      // צום גדליה: ג' בתשרי, או ד' כשג' חל בשבת (נדחה).
+      var g3 = new H.HDate(3, M.TISHREI, c.year);
+      var gAbs = g3.abs() + (g3.getDay() === 6 ? 1 : 0);
+      if (abs > gAbs && d <= 8) f.add('slichot_ayt_' + (1 + weekdaysBetween(gAbs + 1, abs)));
     }
   }
 
@@ -510,22 +527,28 @@
   }
 
   function addAvinoMalkeinu(f) {
-    // אבינו מלכנו — לא בשבת, לא בתשעה באב, ובערב יום כיפור לא (רמ"א תרד"מ).
+    // אבינו מלכנו — לא בשבת, לא בראש השנה, לא בתשעה באב ולא בערב יום כיפור
+    // (רמ"א תר"ד ב), חוץ מכשיום כיפור חל בשבת: אז אומרים בשחרית של ערב יוה"כ
+    // (יום שישי; במנחה של ערב שבת ממילא לא אומרים — ראו services.js).
     //  • avinu_malkeinu_ayt  — עשרת ימי תשובה (שחרית ומנחה; ביום כיפור — בנעילה/במחזור).
-    //  • avinu_malkeinu_fast — תענית ציבור שאינה בעשי"ת: במנחה בלבד.
+    //  • avinu_malkeinu_fast — תענית ציבור שאינה בעשי"ת: שחרית ומנחה (רמ"א תקפ"ד א).
     //  • avinu_malkeinu      — איחוד (תצוגה/תאימות).
     // הבחירה בין "כתבנו" (עשי"ת) ל-"זכרנו" (תענית) נעשית ב-services.js לפי
     // aseret_yemei_teshuva — בכל מקרה אחד מהם בלבד, לעולם לא שניהם.
     var isAyt = f.has(DF.asaretYemeiTeshuva), isFast = f.has(DF.fastDay),
       isShabbat = f.has(DF.shabbat), isYK = f.has(DF.yomKippur),
       isTB = f.has(DF.tishaBaav), isErevYK = f.has(DF.erevYomKippur);
+    // ערב יוה"כ ביום שישי = יום כיפור בשבת → אומרים בשחרית.
+    var erevYKAllowed = isErevYK && f.has(DF.dayFriday);
+    var blockErevYK = isErevYK && !erevYKAllowed;
     // בראש השנה לא אומרים אבינו מלכנו (גם לא בעדות המזרח, שבה הקורפוס מותנה ב-ayt בלבד).
     var isRH = f.has(DF.roshHashanah);
-    if (isAyt && !isShabbat && !isErevYK && !isRH) f.add('avinu_malkeinu_ayt');
+    if (isAyt && !isShabbat && !blockErevYK && !isRH) f.add('avinu_malkeinu_ayt');
     if (isFast && !isAyt && !isShabbat && !isTB) f.add('avinu_malkeinu_fast');
-    if ((isAyt || isFast) && !isShabbat && !isTB && !isErevYK && !isRH) f.add(DF.avinoMalkeinu);
+    if ((isAyt || isFast) && !isShabbat && !isTB && !blockErevYK && !isRH) f.add(DF.avinoMalkeinu);
     if (isYK) f.add(DF.avinoMalkeinu);
   }
+
 
   function addYaalehVeyavo(f) {
     var days = [DF.roshChodesh, DF.roshHashanah, DF.pesach, DF.cholHamoedPesach,

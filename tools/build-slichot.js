@@ -2,7 +2,7 @@
  * tools/data-overrides/slichot_ashkenaz.json + slichot_ashkenaz_aseret.json
  * (סליחות נוסח אשכנז/ליטא, converted from seforim.db book 1393).
  *   node tools/build-slichot.js
- * Output: { ashkenaz: { day1..day7, erev_rosh_hashana, tzom_gedalia, ayt_mon..ayt_thu,
+ * Output: { ashkenaz: { day1..day7, erev_rosh_hashana, tzom_gedalia, ayt_2..ayt_5 (ordinal: the 2nd..5th day of עשי"ת slichot),
  *   erev_yom_kippur } }, each a flat segment list [{kind, text}] with kind
  *   header | instruction | text (title → header). The item to show is chosen
  *   at runtime from the slichot_* day flags (js/calendar.js, js/services.js).

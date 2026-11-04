@@ -248,6 +248,8 @@
     'ירמיה': 1, 'ירמיהו': 1, 'יחזקאל': 1, 'יואל': 1, 'עמוס': 1, 'עובדיה': 1, 'יונה': 1,
     'מיכה': 1, 'נחום': 1, 'חבקוק': 1, 'צפניה': 1, 'זכריה': 1, 'מלאכי': 1, 'משלי': 1,
     'איוב': 1, 'איכה': 1, 'קהלת': 1, 'אסתר': 1, 'דניאל': 1, 'נחמיה': 1 };
+  // "ה' בדים", "ה' פעמים" — a count of things, not the Name.
+  var COUNT_NOUN_AFTER = /^\s*(?:בדים|בדי|פעמים|ימים|ימי|שנים|שעות|דקות|ספרים|חומשי|מינים|ברכות|פסוקים|קולות|הקפות|תעניות|עינויים|אצבעות|עולמות|דברים|אותיות|תיבות|גבורות|סעיפים|פרקים|מזמורים|הושענות|ערבות)(?![א-ת])/;
   var HEB_MONTH_AFTER = /^\s*ב(?:ניסן|אייר|איר|סיון|סיוון|תמוז|אב|אלול|תשרי|חשון|חשוון|מרחשון|כסלו|טבת|שבט|אדר)(?![א-ת])/;
   // Is `w` a Hebrew numeral written in letters ("כד", "קיט", "ה")? Non-increasing values.
   function isNumeralWord(w) {
@@ -272,6 +274,7 @@
     if (/[א-ת][׳']\s*$/.test(before)) return true;                  // "ד' ה'" — a letter list
     if (/\($/.test(before) && /^\s*\)/.test(after)) return true;    // "(ה')" — a bare letter in parens
     if (HEB_MONTH_AFTER.test(after)) return true;                   // "ה' באייר" — a date
+    if (COUNT_NOUN_AFTER.test(after)) return true;                  // "ה' בדים" — five of something
     // Verse citation "שמות כד, ה'" / "תהלים קיט, ה'": [book/section] [numeral][,:] ה'
     var cm = /([א-ת֑-ׇ]+)\s+([א-ת֑-ׇ]{1,4})\s*[,:]\s*$/.exec(before);
     if (cm) {
@@ -886,7 +889,7 @@
     // Specific causes first: a Desktop-folder failure must not be reported as a
     // permission problem just because the message also mentions the shortcut API.
     if (/target folder not found|folder not found|USERPROFILE|HOME not set|desktop.{0,20}(not found|missing)|PathNotFound|ENOENT|cannot find the path/i.test(msg)) {
-      return 'לא נמצאה תיקיית שולחן העבודה במחשב (לא קשור להרשאות).' +
+      return 'לא נמצאה תיקיית שולחן העבודה במחשב (לא קשור להרשאות). ' +
         'לרוב שולחן העבודה מנותב ל-OneDrive או למיקום אחר שאוצריא אינה מוצאת. ' +
         'צרו תיקיית "Desktop" בתיקיית המשתמש (או המתינו לסנכרון OneDrive) ונסו שוב; ' +
         'לחלופין צרו קיצור ידנית עם הכתובת otzaria://open/plugin/com.moshenahari.siduron.' + detail;

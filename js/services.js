@@ -21,6 +21,9 @@
   // Tags we couldn't map are logged once (dev aid) so coverage gaps surface.
   var _unknown = {};
 
+  var DOW_FLAGS = [null, 'day_sunday', 'day_monday', 'day_tuesday', 'day_wednesday',
+    'day_thursday', 'day_friday', 'day_shabbat'];
+
   // Map one Tfilon condition tag → boolean, given a flag lookup `has`.
   // Unknown tags default to TRUE (show) but are recorded in _unknown.
   function evalTag(tag, has) {
@@ -129,6 +132,12 @@
       case 'kaparatPasha': case 'leap_keferat_pashay': return false;
       case 'purim_meshulash_tachanun_message': return false;
       default:
+        // dowNNN — today's weekday is one of the digits (1 = יום א' … 7 = שבת);
+        // used by the Ashkenaz הושענות variants ("כשחל ביום ג', ד', או ו'").
+        if (/^dow[1-7]+$/.test(tag)) {
+          for (var di = 3; di < tag.length; di++) if (has(DOW_FLAGS[+tag.charAt(di)])) return true;
+          return false;
+        }
         if (!_unknown[tag]) { _unknown[tag] = true; if (global.console) console.log('[services] unmapped condition tag:', tag); }
         return true;
     }
@@ -308,20 +317,22 @@
    * הקורפוס (Tfilon) מכיל כמה גרסאות של הקטע, מותנות בתחנון / עשי"ת / "noGedalya"
    * בצורה שמציגה אותו בכל יום חול עם תחנון, פעמיים בעשי"ת, ושני נוסחי כתבנו+זכרנו
    * וחדש+ברך יחד. לכן האיחוד נעשה כאן, לפי דגלי הלוח (calendar.js):
-   *   • הקטע מוצג רק כש-avinu_malkeinu_ayt (עשי"ת, לא שבת, לא ערב יה"כ) או
-   *     avinu_malkeinu_fast (תענית ציבור — במנחה בלבד), או ביום כיפור (בלוק kipur).
+   *   • הקטע מוצג רק כש-avinu_malkeinu_ayt (עשי"ת, לא שבת, לא ערב יה"כ — חוץ
+   *     משחרית ערב יוה"כ שחל בשישי) או avinu_malkeinu_fast (תענית ציבור — שחרית
+   *     ומנחה), או ביום כיפור (בלוק kipur). לא בערבית, ולא במנחה של ערב שבת.
    *   • מוצגת גרסה אחת בלבד (הראשונה שתנאי הכותרת שלה מתקיימים).
    *   • "חדש עלינו"/"כתבנו" — בעשי"ת בלבד; "ברך עלינו"/"זכרנו" — בתענית בלבד.
    * Returns { skip: bool[], force: bool[] } — force = line decided here, ignore its cond. */
   var AM_HEADER = 'אבינו מלכנו';
   var AM_ONLY_AYT_RE = /^אבינו מלכנו (?:חדש עלינו|כתבנו)/;
   var AM_ONLY_FAST_RE = /^אבינו מלכנו (?:ברך עלינו|זכרנו)/;
+  function noTach(cond) { return (cond || []).filter(function (t) { return !/tachanun/i.test(t); }); }
   function planAvinuMalkeinu(segs, hasF, service) {
     var skip = [], force = [], i, n = segs.length;
     for (i = 0; i < n; i++) { skip.push(false); force.push(false); }
     var inAyt = hasF('aseret_yemei_teshuva');
-    var allowed = hasF('avinu_malkeinu_ayt') ||
-      (hasF('avinu_malkeinu_fast') && service === 'mincha');
+    var allowed = service !== 'arvit' &&
+      (hasF('avinu_malkeinu_ayt') || hasF('avinu_malkeinu_fast'));
     // מנחה בערב שבת (שישי בעשי"ת / בצום) — לא אומרים; ביום כיפור — רק בשחרית
     // (הנעילה מחוץ לסידור היומי), בכל הנוסחים.
     if (service === 'mincha' && (hasF('day_friday') || hasF('yom_kippur'))) allowed = false;
@@ -333,12 +344,17 @@
       while (j < n && segs[j].kind !== 'header') j++;
       var cond = segs[i].cond || [];
       var isKipur = cond.indexOf('avinu_malkenu_kipur') >= 0;
-      var ok = ((isKipur && service !== 'mincha') || allowed) && !chosen && condPasses(cond, hasF);
+      // The corpus gates the block on תחנון (shacharitTachanun…) as a stand-in for
+      // "a day אבינו מלכנו is said"; that decision is made above from the calendar,
+      // so ignore those tags — on ערב יוה"כ שחל בשישי there is no תחנון, yet
+      // אבינו מלכנו is said in שחרית.
+      var ok = ((isKipur && service !== 'mincha') || allowed) && !chosen && condPasses(noTach(cond), hasF);
       for (var k = i; k < j; k++) {
         if (!ok) { skip[k] = true; continue; }
         var t = plain(segs[k].text);
         if (AM_ONLY_AYT_RE.test(t)) { force[k] = true; if (!inAyt) skip[k] = true; }
         else if (AM_ONLY_FAST_RE.test(t)) { force[k] = true; if (inAyt) skip[k] = true; }
+        else { force[k] = true; if (!condPasses(noTach(segs[k].cond), hasF)) skip[k] = true; }
       }
       if (ok) chosen = true;
       i = j;
@@ -481,21 +497,20 @@
   }
 
   // Slichot (נוסח אשכנז בלבד) — window.SIDURON_SLICHOT, built by tools/build-slichot.js.
-  // The item is picked from the slichot_* day flags (js/calendar.js); null when
-  // today has no slichot text (other nuschaot, other days, ימי עשי"ת א'/ו'/ז').
-  var SLICHOT_DOW = ['day_sunday', 'day_monday', 'day_tuesday', 'day_wednesday', 'day_thursday', 'day_friday'];
-  var SLICHOT_AYT = { slichot_ayt_mon: 'ayt_mon', slichot_ayt_tue: 'ayt_tue', slichot_ayt_wed: 'ayt_wed', slichot_ayt_thu: 'ayt_thu' };
+  // The item is picked from the slichot_* day flags (js/calendar.js) by the ORDINAL
+  // day of slichot (day1..day7 in Elul, ayt_2..ayt_5 after צום גדליה) — the book
+  // numbers its days that way, not by weekday. null for other nuschaot / days.
   function slichotId(nusach, dayFlags) {
     var d = global.SIDURON_SLICHOT;
     if (nusach !== 'ashkenaz' || !d || !d.ashkenaz) return null;
-    var hasF = makeHas(dayFlags), id = null, i;
+    var flags = (dayFlags && dayFlags.flags) || [], id = null, i, mm;
+    var hasF = makeHas(dayFlags);
     if (hasF('slichot_erev_rh')) id = 'erev_rosh_hashana';
     else if (hasF('slichot_gedalia')) id = 'tzom_gedalia';
     else if (hasF('slichot_erev_yk')) id = 'erev_yom_kippur';
-    else if (hasF('slichot_elul')) {
-      for (i = 0; i < SLICHOT_DOW.length; i++) if (hasF(SLICHOT_DOW[i])) id = 'day' + (i + 1);
-    } else {
-      for (var k in SLICHOT_AYT) if (hasF(k)) id = SLICHOT_AYT[k];
+    else for (i = 0; i < flags.length && !id; i++) {
+      if ((mm = /^slichot_elul_day_(\d)$/.exec(flags[i]))) id = 'day' + mm[1];
+      else if ((mm = /^slichot_ayt_(\d)$/.exec(flags[i]))) id = 'ayt_' + mm[1];
     }
     return id && d.ashkenaz[id] ? id : null;
   }

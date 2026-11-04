@@ -134,13 +134,26 @@ NUSACHIM.forEach(function (n) {
   check(n + ' ערב יום כיפור (ט\' תשרי): אין אבינו מלכנו', amHeaders(render('2026-09-20', n, 'shacharit').html) === 0 && amHeaders(render('2026-09-20', n, 'mincha').html) === 0);
 });
 ['ashkenaz', 'sfard'].forEach(function (n) {
+  // תענית ציבור: אבינו מלכנו בשחרית ובמנחה (רמ"א תקפ"ד א), לא בערבית שלפניה.
   const s = render('2026-07-02', n, 'shacharit').html, m = render('2026-07-02', n, 'mincha').html;
-  check(n + ' י"ז בתמוז: אבינו מלכנו במנחה בלבד', amHeaders(s) === 0 && amHeaders(m) === 1);
-  const lm = amLines(m);
-  check(n + ' י"ז בתמוז מנחה: "זכרנו" ולא "כתבנו"; "ברך" ולא "חדש"', lm.zochrenu >= 1 && lm.katvenu === 0 && lm.barech === 1 && lm.chadesh === 0, JSON.stringify(lm));
+  check(n + ' י"ז בתמוז: אבינו מלכנו בשחרית ובמנחה', amHeaders(s) === 1 && amHeaders(m) === 1, amHeaders(s) + '/' + amHeaders(m));
+  [['שחרית', s], ['מנחה', m]].forEach(function (p) {
+    const l = amLines(p[1]);
+    check(n + ' י"ז בתמוז ' + p[0] + ': "זכרנו" ולא "כתבנו"; "ברך" ולא "חדש"', l.zochrenu >= 1 && l.katvenu === 0 && l.barech === 1 && l.chadesh === 0, JSON.stringify(l));
+  });
+  // עשרה בטבת שחל ביום שישי (22.12.2023): שחרית כן, מנחה (ערב שבת) לא.
+  check(n + ' עשרה בטבת ביום שישי: שחרית כן, מנחה לא', amHeaders(render('2023-12-22', n, 'shacharit').html) === 1 &&
+    amHeaders(render('2023-12-22', n, 'mincha').html) === 0);
+  check(n + ' ערבית שלפני תענית: אין אבינו מלכנו', amHeaders(render('2026-07-02', n, 'arvit').html) === 0);
 });
 check('תשעה באב: אין אבינו מלכנו', amHeaders(render('2026-07-23', 'sfard', 'mincha').html) === 0 && !has('2026-07-23', 'avinu_malkeinu'));
 check('שבת שובה (שבת בעשי"ת): הדגל לא מופעל', !has('2026-09-19', 'avinu_malkeinu') && !has('2026-09-19', 'avinu_malkeinu_ayt'));
+// ערב יוה"כ ביום שישי (יום כיפור בשבת, 29.9.2028): אומרים בשחרית (רמ"א תר"ד ב).
+NUSACHIM.forEach(function (n) {
+  check(n + ' ערב יוה"כ ביום שישי (יוה"כ בשבת): שחרית כן, מנחה לא',
+    has('2028-09-29', 'avinu_malkeinu_ayt') && amHeaders(render('2028-09-29', n, 'shacharit').html) === 1 &&
+    amHeaders(render('2028-09-29', n, 'mincha').html) === 0);
+});
 check('דגלי אבינו מלכנו: ערב יה"כ לא; עשי"ת כן; תענית ציבור (לא עשי"ת) — fast בלבד', !has('2026-09-20', 'avinu_malkeinu') &&
   has('2026-09-16', 'avinu_malkeinu_ayt') && has('2026-07-02', 'avinu_malkeinu_fast') && !has('2026-07-02', 'avinu_malkeinu_ayt'));
 
@@ -263,7 +276,7 @@ console.log('\n── המרת ה\' קצר (ABBR_RE) ──');
   const sb = {}; vm.createContext(sb); vm.runInContext(code, sb);
   const conv = sb.__conv;
   const keep = ["תהלים ה'", "שמות כד, ה'", "תהלים קיט, ה'", "(ה')", "ליל ה'", "ה' באייר", "ה' בניסן", "פרק ה'",
-    "יום ה'", "ד' ה' ו'", "ויקרא כג, ה'", "במדבר ה'"];
+    "יום ה'", "ד' ה' ו'", "ויקרא כג, ה'", "במדבר ה'", "ויהיו בערבה ה' בדים", "חובטים ה' פעמים"];
   keep.forEach(function (t) { check('לא מומר: ' + t, conv(t) === t, conv(t)); });
   const change = ["ה' אלהי", "לה' הארץ", "וה' אמר", "הודו לה'", "ברוך אתה, ה' אלהינו", "ויאמר ה' אל משה"];
   change.forEach(function (t) { check('מומר: ' + t, conv(t) !== t && conv(t).indexOf('יי') >= 0, conv(t)); });
@@ -317,7 +330,12 @@ console.log('\n── הושענות (data-overrides/hoshanot_*.json) ──');
     check(n + ' שחרית הושענא רבה: סדר הושענא רבה פעם אחת, בלי ימי חוה"מ',
       count(hr, ALLT[n].hoshana_rabba[0]) === 1 &&
       (n === 'sfard' ? count(hr, ALLT[n].chol_hamoed[0]) === 0 : [2, 3, 4, 5, 6].every(function (d) { return count(hr, ALLT[n]['day' + d][0]) === 0; })));
-    const sh = navOf(SHABBAT_CHM, n, 'shacharit', true);
+    // עדות המזרח: "בשבת אין לומר הושענות, וכן המנהג בארץ ישראל" — רק בחו"ל.
+    const sh = navOf(SHABBAT_CHM, n, 'shacharit', true, n === 'edot_mizrach' ? { isInIsrael: false } : null);
+    if (n === 'edot_mizrach') {
+      const shIL = navOf(SHABBAT_CHM, n, 'shacharit', true);
+      check(n + ' שבת חוה"מ בא"י: אין הושענות', ALLT[n].shabbat.every(function (t) { return count(shIL, t) === 0; }));
+    }
     check(n + ' שחרית שבת חוה"מ: הושענות לשבת פעם אחת, לא של חול ולא הושענא רבה',
       ALLT[n].shabbat.every(function (t) { return count(sh, t) === 1; }) &&
       count(sh, ALLT[n].hoshana_rabba[0]) === 0 &&
@@ -333,6 +351,22 @@ console.log('\n── הושענות (data-overrides/hoshanot_*.json) ──');
     const mn = navOf(DAYS[3], n, 'mincha');
     check(n + ' מנחה בחוה"מ סוכות: אין הושענות', every.every(function (t) { return count(mn, t) === 0; }));
   });
+  // אשכנז: ההושענא של ימים ב'/ד' תלויה ביום בשבוע — מוצגת רק החלופה של היום.
+  // 5787: יום ב' דסוכות = א' (27.9.2026) → "למען אמתך"; יום ד' = ג' (29.9.2026) → "אבן שתיה".
+  const ashk = function (iso) { return plain(render(iso, 'ashkenaz', 'shacharit').html); };
+  const d2 = ashk(DAYS[2]), d4 = ashk(DAYS[4]);
+  check('אשכנז יום ב\' (חל ביום א\'): "למען אמתך" ולא "אבן שתיה"', d2.indexOf('למען אמתך') >= 0 && d2.indexOf('אבן שתיה') < 0);
+  check('אשכנז יום ד\' (חל ביום ג\'): "אבן שתיה" בלבד', d4.indexOf('אבן שתיה') >= 0 && d4.indexOf('אערך שועי') < 0 &&
+    d4.indexOf('אם אני חומה') < 0 && d4.indexOf('בארבע שבועות') < 0);
+  check('אשכנז: הוראות "כשחל ביום…" מוצגות כהוראה, רק זו של היום', (function () {
+    const h = render(DAYS[4], 'ashkenaz', 'shacharit').html;
+    return /class="s-instruction">(?:<[^>]*>)*\s*כשחל ביום ג/.test(h.replace(/[\u0591-\u05C7]/g, '')) && plain(h).indexOf('כשחל ביום ה') < 0;
+  })());
+  check('evalTag: dowNNN לפי יום בשבוע', (function () {
+    const ev = vm.runInContext('SiduronServices._evalTag', ctx);
+    return ev('dow346', function (f) { return f === 'day_tuesday'; }) === true && ev('dow346', function (f) { return f === 'day_sunday'; }) === false &&
+      ev('dow1', function (f) { return f === 'day_sunday'; }) === true;
+  })());
   const abroad = navOf(DAYS[3], 'ashkenaz', 'shacharit', false, { isInIsrael: false });
   check('אשכנז חו"ל: שחרית יום 3 — הושענות של יום 3 פעם אחת', count(abroad, ALLT.ashkenaz.day3[0]) === 1);
   check('דגלי sukkot_day_N וגם hoshana_raba בהושענא רבה', has(HR, 'sukkot_day_7') && has(HR, 'hoshana_raba') && has(DAYS[2], 'sukkot_day_2') && !has(DAYS[2], 'hoshana_raba'));
@@ -352,8 +386,9 @@ console.log('\n── סליחות (אשכנז): אלול, ערב ר"ה, עשי"
   const html = (day, n, over) => vm.runInContext(`(function(){${mk(day, n, over)}var r=SiduronServices.renderSlichot(${JSON.stringify(n)},df);return r?r.html:null;})()`, ctx);
   const DATA = vm.runInContext('SIDURON_SLICHOT.ashkenaz', ctx);
   // oracle: expected slichot item per date, from calendar facts only
-  const DOWID = ['day1', 'day2', 'day3', 'day4', 'day5', 'day6'];     // Sun..Fri
-  const AYT = { 1: 'ayt_mon', 2: 'ayt_tue', 3: 'ayt_wed', 4: 'ayt_thu' };
+  // The book numbers days by ORDER of slichot (שבת not counted): Elul day1..day7,
+  // and after צום גדליה ayt_2..ayt_5 ("ליום שני…חמישי דעשי"ת").
+  const weekdaysIn = (a, b) => { let n = 0; for (let x = new Date(a); x <= b; x.setDate(x.getDate() + 1)) if (x.getDay() !== 6) n++; return n; };
   const bad = [], rhDows = {};
   let total = 0, shown = 0;
   for (let y = 2021; y <= 2031; y++) {
@@ -365,15 +400,23 @@ console.log('\n── סליחות (אשכנז): אלול, ערב ר"ה, עשי"
     rhDows[rh.getDay()] = 1;
     const start = new Date(rh); start.setDate(start.getDate() - (rh.getDay() === 0 ? 7 : rh.getDay()));
     if (rh.getDay() === 1 || rh.getDay() === 2) start.setDate(start.getDate() - 7);
+    let gedalia = null;
+    for (let d = new Date(rh); d < new Date(rh.getFullYear(), rh.getMonth(), rh.getDate() + 5); d.setDate(d.getDate() + 1)) {
+      if (flagsFor(iso(d)).flags.indexOf('fast_gedalia') >= 0) { gedalia = new Date(d); break; }
+    }
+    if (!gedalia) { bad.push('no gedalia ' + y); continue; }
     for (let d = new Date(rh.getFullYear(), rh.getMonth(), rh.getDate() - 45); d < new Date(rh.getFullYear(), rh.getMonth(), rh.getDate() + 20); d.setDate(d.getDate() + 1)) {
       const day = iso(d), f = flagsFor(day).flags, dow = d.getDay();
       const before = Math.round((rh - d) / 864e5);
       let exp = null;
       if (before === 1) exp = 'erev_rosh_hashana';
-      else if (d >= start && before > 1) exp = dow === 6 ? null : DOWID[dow];
+      else if (d >= start && before > 1) exp = dow === 6 ? null : 'day' + weekdaysIn(start, d);
       else if (f.indexOf('fast_gedalia') >= 0) exp = 'tzom_gedalia';
       else if (f.indexOf('erev_yom_kippur') >= 0) exp = 'erev_yom_kippur';
-      else if (f.indexOf('aseret_yemei_teshuva') >= 0 && f.indexOf('rosh_hashanah') < 0 && f.indexOf('yom_kippur') < 0 && f.indexOf('shabbat') < 0 && AYT[dow]) exp = AYT[dow];
+      else if (f.indexOf('aseret_yemei_teshuva') >= 0 && f.indexOf('rosh_hashanah') < 0 && f.indexOf('yom_kippur') < 0 && dow !== 6 && d > gedalia) {
+        const g1 = new Date(gedalia); g1.setDate(g1.getDate() + 1);
+        exp = 'ayt_' + (1 + weekdaysIn(g1, d));
+      }
       total++; if (exp) shown++;
       const got = sid(day, 'ashkenaz');
       if (got !== exp) bad.push(day + ' exp ' + exp + ' got ' + got);
@@ -385,9 +428,13 @@ console.log('\n── סליחות (אשכנז): אלול, ערב ר"ה, עשי"
   check('סליחות רק בימים הרלוונטיים (' + shown + ' מתוך ' + total + ')', shown > 50 && shown < total / 2);
   check('ר"ה ב\' (26.9.2022): מתחילים ביום ראשון 18.9', sid('2022-09-17', 'ashkenaz') === null && sid('2022-09-18', 'ashkenaz') === 'day1' && sid('2022-09-23', 'ashkenaz') === 'day6' && sid('2022-09-24', 'ashkenaz') === null && sid('2022-09-25', 'ashkenaz') === 'erev_rosh_hashana');
   check('ר"ה ג\' (7.9.2021): מתחילים ביום ראשון 29.8, ערב ר"ה 6.9', sid('2021-08-28', 'ashkenaz') === null && sid('2021-08-29', 'ashkenaz') === 'day1' && sid('2021-09-06', 'ashkenaz') === 'erev_rosh_hashana');
+  check('ר"ה ג\' (7.9.2021): יום ראשון השני (5.9) הוא "ליום שביעי", לא "ליום ראשון"', sid('2021-09-03', 'ashkenaz') === 'day6' && sid('2021-09-04', 'ashkenaz') === null && sid('2021-09-05', 'ashkenaz') === 'day7');
   check('ר"ה שבת (12.9.2026): 6.9 עד 11.9 (ערב ר"ה ביום ו\')', sid('2026-09-06', 'ashkenaz') === 'day1' && sid('2026-09-10', 'ashkenaz') === 'day5' && sid('2026-09-11', 'ashkenaz') === 'erev_rosh_hashana' && sid('2026-09-05', 'ashkenaz') === null);
   check('ר"ה ה\' (3.10.2024): 29.9 ראשון עד ערב ר"ה 2.10', sid('2024-09-29', 'ashkenaz') === 'day1' && sid('2024-10-02', 'ashkenaz') === 'erev_rosh_hashana' && sid('2024-09-28', 'ashkenaz') === null);
-  check('עשי"ת 5785: צום גדליה 6.10, ב\'–ג\' בסליחות, ערב יה"כ 11.10 (ולא ו\'/ז\')', sid('2024-10-04', 'ashkenaz') === null && sid('2024-10-05', 'ashkenaz') === null && sid('2024-10-06', 'ashkenaz') === 'tzom_gedalia' && sid('2024-10-07', 'ashkenaz') === 'ayt_mon' && sid('2024-10-08', 'ashkenaz') === 'ayt_tue' && sid('2024-10-09', 'ashkenaz') === 'ayt_wed' && sid('2024-10-10', 'ashkenaz') === 'ayt_thu' && sid('2024-10-11', 'ashkenaz') === 'erev_yom_kippur');
+  check('עשי"ת 5785: צום גדליה 6.10, ב\'–ג\' בסליחות, ערב יה"כ 11.10 (ולא ו\'/ז\')', sid('2024-10-04', 'ashkenaz') === null && sid('2024-10-05', 'ashkenaz') === null && sid('2024-10-06', 'ashkenaz') === 'tzom_gedalia' && sid('2024-10-07', 'ashkenaz') === 'ayt_2' && sid('2024-10-08', 'ashkenaz') === 'ayt_3' && sid('2024-10-09', 'ashkenaz') === 'ayt_4' && sid('2024-10-10', 'ashkenaz') === 'ayt_5' && sid('2024-10-11', 'ashkenaz') === 'erev_yom_kippur');
+  check('עשי"ת 5787 (ר"ה בשבת): צום גדליה ב\' 14.9, ג\'–ו\' = ימים 2–5, ערב יה"כ א\' 20.9', sid('2026-09-14', 'ashkenaz') === 'tzom_gedalia' && sid('2026-09-15', 'ashkenaz') === 'ayt_2' && sid('2026-09-16', 'ashkenaz') === 'ayt_3' && sid('2026-09-17', 'ashkenaz') === 'ayt_4' && sid('2026-09-18', 'ashkenaz') === 'ayt_5' && sid('2026-09-19', 'ashkenaz') === null && sid('2026-09-20', 'ashkenaz') === 'erev_yom_kippur');
+  check('עשי"ת 5786 (ר"ה ביום ג\'): צום גדליה ה\' 25.9, ו\' 26.9 = יום 2, א\'–ג\' = 3–5', sid('2025-09-25', 'ashkenaz') === 'tzom_gedalia' && sid('2025-09-26', 'ashkenaz') === 'ayt_2' && sid('2025-09-27', 'ashkenaz') === null && sid('2025-09-28', 'ashkenaz') === 'ayt_3' && sid('2025-09-29', 'ashkenaz') === 'ayt_4' && sid('2025-09-30', 'ashkenaz') === 'ayt_5' && sid('2025-10-01', 'ashkenaz') === 'erev_yom_kippur');
+  check('כל פרקי הספר בשימוש (day1..day7, ayt_2..ayt_5)', ['day1', 'day2', 'day3', 'day4', 'day5', 'day6', 'day7', 'ayt_2', 'ayt_3', 'ayt_4', 'ayt_5'].every(id => !!DATA[id]));
   check('שאר ימות השנה: אין סליחות', sid('2026-01-15', 'ashkenaz') === null && sid('2026-04-10', 'ashkenaz') === null && sid('2026-10-21', 'ashkenaz') === null);
   // text: only today's slichot
   const texts = id => DATA[id].filter(s => s.kind === 'text').map(s => plain(s.text)).filter(x => x.length > 60);
