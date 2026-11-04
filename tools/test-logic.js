@@ -269,5 +269,79 @@ console.log('\n── המרת ה\' קצר (ABBR_RE) ──');
   change.forEach(function (t) { check('מומר: ' + t, conv(t) !== t && conv(t).indexOf('יי') >= 0, conv(t)); });
 })();
 
+// ── הושענות: חוה"מ סוכות (חול + שבת) והושענא רבה, כל נוסח ──
+console.log('\n── הושענות (data-overrides/hoshanot_*.json) ──');
+(function () {
+  const OVD = path.join(ROOT, 'tools/data-overrides');
+  const items = {};
+  NUSACHIM.forEach(function (n) { items[n] = JSON.parse(fs.readFileSync(path.join(OVD, 'hoshanot_' + n + '.json'), 'utf8')).items; });
+  const norm = function (t) { return plain(String(t).replace(/ /g, ' ')); };
+  function titles(n, id) {
+    const it = items[n].find(function (x) { return x.id === id; });
+    return it.segments.filter(function (s) { return s.kind === 'title'; }).map(function (s) { return norm(s.text); });
+  }
+  function navOf(iso, n, svc, shabbatSvc, over) {
+    const u = Object.assign({}, BASE, { nusach: n }, over || {});
+    const call = shabbatSvc ? 'renderShabbat' : 'render';
+    return vm.runInContext(
+      `(function(){var df=SiduronCalendar.flagsFor(new Date(${JSON.stringify(iso + 'T12:00:00')}),${JSON.stringify(u)});` +
+      `return SiduronServices.${call}(${JSON.stringify(n)},${JSON.stringify(svc)},df);})()`, ctx).nav.map(function (x) { return norm(x.label); });
+  }
+  function count(nav, t) { return nav.filter(function (x) { return x === t; }).length; }
+  // 5787: ט"ו תשרי = שבת 26.9.2026 (יום 1), הושענא רבה = 2.10.2026; שבת חוה"מ = 11.10.2025 (יום 5 של 5786).
+  const DAYS = { 2: '2026-09-27', 3: '2026-09-28', 4: '2026-09-29', 5: '2026-09-30', 6: '2026-10-01' };
+  const HR = '2026-10-02', SHABBAT_CHM = '2025-10-11';
+  const ALLT = {};
+  NUSACHIM.forEach(function (n) {
+    ALLT[n] = {};
+    items[n].forEach(function (it) { ALLT[n][it.id] = titles(n, it.id); });
+  });
+  ALLT.edot_mizrach.hoshana_rabba = [norm('הושענות להושענא רבה')];   // הכותרת הוחלפה (במקור: שם מחזור)
+
+  NUSACHIM.forEach(function (n) {
+    Object.keys(DAYS).forEach(function (d) {
+      const nav = navOf(DAYS[d], n, 'shacharit');
+      const mine = n === 'sfard' ? ALLT[n].chol_hamoed : ALLT[n]['day' + d];
+      check(n + ' שחרית יום ' + d + ' דחוה"מ: ההושענות של היום מופיעות פעם אחת',
+        mine.every(function (t) { return count(nav, t) === 1; }), JSON.stringify(mine.map(function (t) { return count(nav, t); })));
+      if (n !== 'sfard') {
+        check(n + ' שחרית יום ' + d + ': לא מופיעות הושענות של יום אחר / הושענא רבה / שבת',
+          Object.keys(DAYS).filter(function (x) { return x !== d; }).every(function (x) { return count(nav, ALLT[n]['day' + x][0]) === 0; }) &&
+          count(nav, ALLT[n].hoshana_rabba[0]) === 0 && count(nav, ALLT[n].shabbat[0]) === 0);
+      } else {
+        check(n + ' שחרית יום ' + d + ': אין הושענא רבה/שבת', count(nav, ALLT[n].hoshana_rabba[0]) === 0 && count(nav, ALLT[n].shabbat[0]) === 0);
+      }
+      check(n + ' שחרית יום ' + d + ': אין כותרת "הושענות" כפולה מהקורפוס הישן', count(nav, norm('הושענות')) === 0);
+    });
+    const hr = navOf(HR, n, 'shacharit');
+    check(n + ' שחרית הושענא רבה: סדר הושענא רבה פעם אחת, בלי ימי חוה"מ',
+      count(hr, ALLT[n].hoshana_rabba[0]) === 1 &&
+      (n === 'sfard' ? count(hr, ALLT[n].chol_hamoed[0]) === 0 : [2, 3, 4, 5, 6].every(function (d) { return count(hr, ALLT[n]['day' + d][0]) === 0; })));
+    const sh = navOf(SHABBAT_CHM, n, 'shacharit', true);
+    check(n + ' שחרית שבת חוה"מ: הושענות לשבת פעם אחת, לא של חול ולא הושענא רבה',
+      ALLT[n].shabbat.every(function (t) { return count(sh, t) === 1; }) &&
+      count(sh, ALLT[n].hoshana_rabba[0]) === 0 &&
+      (n === 'sfard' ? count(sh, ALLT[n].chol_hamoed[0]) === 0 : count(sh, ALLT[n].day5[0]) === 0));
+    const every = [];
+    Object.keys(ALLT[n]).forEach(function (id) { ALLT[n][id].forEach(function (t) { every.push(t); }); });
+    ['2026-11-03', '2026-10-03', '2026-04-01', '2026-12-10', '2026-09-20'].forEach(function (iso) {
+      const nav = navOf(iso, n, 'shacharit');
+      check(n + ' שחרית ' + iso + ' (לא חוה"מ סוכות): אין הושענות', every.every(function (t) { return count(nav, t) === 0; }));
+    });
+    const shOut = navOf('2026-11-07', n, 'shacharit', true);
+    check(n + ' שחרית שבת רגילה: אין הושענות', every.every(function (t) { return count(shOut, t) === 0; }));
+    const mn = navOf(DAYS[3], n, 'mincha');
+    check(n + ' מנחה בחוה"מ סוכות: אין הושענות', every.every(function (t) { return count(mn, t) === 0; }));
+  });
+  const abroad = navOf(DAYS[3], 'ashkenaz', 'shacharit', false, { isInIsrael: false });
+  check('אשכנז חו"ל: שחרית יום 3 — הושענות של יום 3 פעם אחת', count(abroad, ALLT.ashkenaz.day3[0]) === 1);
+  check('דגלי sukkot_day_N וגם hoshana_raba בהושענא רבה', has(HR, 'sukkot_day_7') && has(HR, 'hoshana_raba') && has(DAYS[2], 'sukkot_day_2') && !has(DAYS[2], 'hoshana_raba'));
+  check('evalTag: sukkotDayN לפי הדגל בלבד', (function () {
+    const ev = vm.runInContext('SiduronServices._evalTag', ctx);
+    return ev('sukkotDay3', function (f) { return f === 'sukkot_day_3'; }) === true &&
+      ev('sukkotDay3', function (f) { return f === 'sukkot_day_4'; }) === false;
+  })());
+})();
+
 console.log('\n=== LOGIC: ' + (fail ? 'FAIL' : 'PASS') + ' (' + pass + ' passed, ' + fail + ' failed) ===');
 process.exit(fail ? 1 : 0);

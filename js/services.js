@@ -65,6 +65,9 @@
       case 'sucot': return has('sukkot') || has('chol_hamoed_sukkot');
       case 'hoshanaRaba': case 'hoshanaraba': case 'HoshanaRaba': return has('hoshana_raba');
       case 'noHoshanaRaba': case 'noHoshanaraba': return !has('hoshana_raba');
+      // הושענות לפי יום סוכות (sukkot_day_N מחושב ב-calendar.js: 1 = ט"ו בתשרי … 7 = הושענא רבה)
+      case 'sukkotDay1': case 'sukkotDay2': case 'sukkotDay3': case 'sukkotDay4':
+      case 'sukkotDay5': case 'sukkotDay6': case 'sukkotDay7': return has('sukkot_day_' + tag.charAt(9));
       case 'lulav_shehecheyanu': return has('lulav_day');
       case 'omer': return has('omer_period');
       // ── הלל ──
