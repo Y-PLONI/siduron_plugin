@@ -191,35 +191,56 @@
   }
 
   /* ────────────── Theme ────────────── */
+  // Every value from the host payload goes into a CSS custom property, so each
+  // one is validated first: a malformed payload leaves the :root fallback in place.
+  var COLOR_RE = /^#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
+  var COLOR_PREFIX = '--c-';
+  // theme.colorScheme roles → --c-<kebab-case>.
+  var COLOR_ROLES = ['primary', 'onPrimary', 'primaryContainer', 'onPrimaryContainer',
+    'secondary', 'onSecondary', 'secondaryContainer', 'onSecondaryContainer',
+    'tertiary', 'onTertiary', 'tertiaryContainer', 'onTertiaryContainer',
+    'surface', 'onSurface', 'onSurfaceVariant', 'surfaceContainerLowest', 'surfaceContainerLow',
+    'surfaceContainer', 'surfaceContainerHigh', 'surfaceContainerHighest',
+    'error', 'onError', 'errorContainer', 'onErrorContainer', 'outline', 'outlineVariant',
+    'inverseSurface', 'onInverseSurface', 'inversePrimary', 'shadow', 'scrim'];
+  // theme.surfaces → --surface-<kebab-case>.
+  var SURFACE_KEYS = { reader: 'reader', panel: 'panel', card: 'card', topBar: 'top-bar' };
+  var SPACING_KEYS = ['2xs', 'xs', 'sm', 'smd', 'md', 'lg', 'xl'];
+  function kebab(k) { return k.replace(/[A-Z]/g, function (c) { return '-' + c.toLowerCase(); }); }
+  function numIn(v, lo, hi) { return typeof v === 'number' && isFinite(v) && v >= lo && v <= hi; }
   function applyTheme(theme) {
     if (!theme || !theme.colorScheme) return;
     var cs = theme.colorScheme, r = document.documentElement;
-    function set(k, v) { if (v) r.style.setProperty(k, v); }
-    set('--c-primary', cs.primary); set('--c-on-primary', cs.onPrimary);
-    set('--c-secondary', cs.secondary);
-    set('--c-secondary-container', cs.secondaryContainer);
-    set('--c-on-secondary-container', cs.onSecondaryContainer);
-    set('--c-surface', cs.surface); set('--c-on-surface', cs.onSurface);
-    set('--c-on-surface-variant', cs.onSurfaceVariant);
-    set('--c-surface-container', cs.surfaceContainer);
-    set('--c-surface-container-high', cs.surfaceContainerHigh);
-    set('--c-surface-container-highest', cs.surfaceContainerHighest);
-    set('--c-outline', cs.outline); set('--c-outline-variant', cs.outlineVariant);
-    set('--c-error', cs.error);
-    if (cs.primary) {
-      set('--c-primary-subtle', hexToRgba(cs.primary, 0.12));
-      set('--c-primary-border', hexToRgba(cs.primary, 0.22));
+    function setColor(name, v) { if (typeof v === 'string' && COLOR_RE.test(v)) r.style.setProperty(name, v); }
+    function setPx(name, v, lo, hi) { if (numIn(v, lo, hi)) r.style.setProperty(name, v + 'px'); }
+    COLOR_ROLES.forEach(function (k) { setColor(COLOR_PREFIX + kebab(k), cs[k]); });
+    // Optional since 0.9.99 — an older host omits these and the :root fallbacks stay.
+    var sf = theme.surfaces;
+    if (sf && typeof sf === 'object') {
+      Object.keys(SURFACE_KEYS).forEach(function (k) { setColor('--surface-' + SURFACE_KEYS[k], sf[k]); });
     }
-    if (cs.onSurface) {
-      set('--c-on-surface-subtle', hexToRgba(cs.onSurface, 0.07));
-      set('--c-on-surface-hover', hexToRgba(cs.onSurface, 0.12));
+    setPx('--radius', theme.radius, 0, 32);
+    var dn = theme.density;
+    if (dn && typeof dn === 'object') {
+      setPx('--field-h', dn.fieldHeight, 32, 64);
+      setPx('--top-bar-height', dn.topBarHeight, 40, 80);
+    }
+    var sp = theme.spacing;
+    if (sp && typeof sp === 'object') SPACING_KEYS.forEach(function (k) { setPx('--space-' + k, sp[k], 0, 64); });
+    if (/^#[0-9a-fA-F]{6}$/.test(String(cs.primary))) {
+      r.style.setProperty('--c-primary-subtle', hexToRgba(cs.primary, 0.12));
+      r.style.setProperty('--c-primary-border', hexToRgba(cs.primary, 0.22));
+    }
+    if (/^#[0-9a-fA-F]{6}$/.test(String(cs.onSurface))) {
+      r.style.setProperty('--c-on-surface-subtle', hexToRgba(cs.onSurface, 0.07));
+      r.style.setProperty('--c-on-surface-hover', hexToRgba(cs.onSurface, 0.12));
     }
     document.body.classList.toggle('dark', theme.mode === 'dark');
     if (theme.typography) {
       var tp = theme.typography;
-      if (tp.lineHeight) r.style.setProperty('--line-height', String(tp.lineHeight));
+      if (numIn(tp.lineHeight, 1, 3)) r.style.setProperty('--line-height', String(tp.lineHeight));
       // Remember Otzaria's chosen font so "default" follows the rest of the app.
-      if (tp.fontFamily) { STATE.themeFont = tp.fontFamily; applyFont(); }
+      if (typeof tp.fontFamily === 'string' && FONT_NAME_RE.test(tp.fontFamily)) { STATE.themeFont = tp.fontFamily; applyFont(); }
     }
   }
   function hexToRgba(hex, a) {
@@ -1085,6 +1106,7 @@
 
   /* ────────────── Font family ────────────── */
   // Built-in serif fallbacks appended so the prayer text always renders nicely.
+  var FONT_NAME_RE = /^[A-Za-z0-9 _-]{1,64}$/;
   var FONT_FALLBACK = "'David', 'Noto Serif Hebrew', serif";
   function applyFont() {
     var fam = STATE.fontFamily || STATE.themeFont || 'FrankRuhlCLM';

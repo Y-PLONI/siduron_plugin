@@ -22,6 +22,15 @@
   --c-outline: #79747E;
   --c-outline-variant: #CAC4D0;
   --c-error: #B3261E;
+  /* Surfaces (theme.surfaces, 0.9.99+): host values override; roles are the fallback. */
+  --surface-reader:  var(--c-surface);
+  --surface-panel:   var(--c-surface);
+  --surface-card:    var(--c-surface);
+  --surface-top-bar: var(--c-surface-container-high);
+  --top-bar-height:  56px;
+  /* Spacing scale (theme.spacing). */
+  --space-2xs: 2px; --space-xs: 4px; --space-sm: 8px; --space-smd: 12px;
+  --space-md: 16px; --space-lg: 24px; --space-xl: 32px;
   --c-primary-subtle: rgba(103, 80, 164, 0.12);
   --c-on-surface-subtle: rgba(29, 27, 32, 0.07);   /* dropdown field fill (idle) */
   --c-on-surface-hover:  rgba(29, 27, 32, 0.12);   /* dropdown field fill (hover/focus) */
@@ -56,7 +65,7 @@ summary:focus-visible, .switch:focus-visible { outline: 2px solid var(--c-primar
 .nav-item:focus-visible { outline-offset: -2px; }   /* clipped by overflow parents */
 html, body {
   margin: 0; padding: 0; height: 100%;
-  background: var(--c-surface);
+  background: var(--surface-panel);
   color: var(--c-on-surface);
   font-family: var(--ui-font);
 }
@@ -152,12 +161,12 @@ body { overflow: hidden; -webkit-user-select: none; user-select: none; }
 .tab.active { color: var(--c-primary); border-bottom-color: var(--c-primary); }
 
 /* ── Reader ── */
-.reader-scroll { flex: 1 1 auto; overflow-y: auto; padding: 8px 0 80px; }
+.reader-scroll { flex: 1 1 auto; overflow-y: auto; padding: 8px 0 80px; background: var(--surface-reader); }
 .service-title {
   text-align: center; font-size: 1.375rem; font-weight: 700; margin: 16px 0 4px;
   color: var(--c-primary); font-family: var(--prayer-font);
 }
-.content { max-width: var(--content-width); margin: 0 auto; padding: 0 16px; }
+.content { max-width: var(--content-width); margin: 0 auto; padding: 0 var(--space-md); }
 
 .prayer {
   font-family: var(--prayer-font);
@@ -235,11 +244,11 @@ body { overflow: hidden; -webkit-user-select: none; user-select: none; }
   padding: 16px 16px 12px; font-weight: 600; font-size: 1.125rem;
   flex: 0 0 auto;
 }
-.panel-body { overflow-y: auto; padding: 4px 16px 16px; }
+.panel-body { overflow-y: auto; padding: var(--space-xs) var(--space-md) var(--space-md); }
 
 /* כרטיס תוכן בתוך חלונית (ללא כותרת) — אחיד עם חלונית ההגדרות */
 .panel-card {
-  background: var(--c-surface);
+  background: var(--surface-card);
   border: 1px solid var(--c-outline-variant);   /* outlined card, no shadow (DS 1.2) */
   border-radius: var(--radius);
   overflow: hidden;
@@ -272,13 +281,13 @@ body { overflow: hidden; -webkit-user-select: none; user-select: none; }
 
 /* Settings — titled cards + segmented controls */
 .settings-card {
-  background: var(--c-surface);
+  background: var(--surface-card);
   border: 1px solid var(--c-outline-variant);
   border-radius: var(--radius);
   overflow: hidden;
-  margin-top: 24px;
+  margin-top: var(--space-lg);
 }
-.settings-card:first-child { margin-top: 4px; }
+.settings-card:first-child { margin-top: var(--space-xs); }
 .settings-card-title {
   font-size: 1rem; font-weight: 700;
   color: var(--c-primary);
@@ -288,7 +297,7 @@ body { overflow: hidden; -webkit-user-select: none; user-select: none; }
 .settings-card-body > .settings-row + .settings-row {
   border-top: 1px solid var(--c-surface-container-highest);
 }
-.settings-row { padding: 12px 16px; }
+.settings-row { padding: var(--space-smd) var(--space-md); }
 .settings-row.stacked { display: flex; flex-direction: column; gap: 12px; }
 .settings-row.toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .settings-row-title    { font-size: 1rem; }
@@ -391,7 +400,7 @@ body { overflow: hidden; -webkit-user-select: none; user-select: none; }
   font-size: .875rem; font-weight: 700; color: var(--c-on-surface-variant);
   margin: 16px 4px 8px; text-transform: none;
 }
-.extras-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.extras-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--space-smd); }
 .extra-card {
   border: 1px solid var(--c-outline-variant); background: var(--c-surface-container);
   color: var(--c-on-surface); border-radius: var(--radius-sm); padding: 16px;
