@@ -477,6 +477,26 @@ body { overflow: hidden; -webkit-user-select: none; user-select: none; }
   background: var(--color-surface); color: var(--color-on-surface);
 }
 
+/* ── Loading / empty / error states (SiduronRender.stateHtml) ── */
+.state {
+  display: flex; flex-direction: column; align-items: center; gap: var(--space-sm);
+  padding: var(--space-xl) var(--space-md); text-align: center; color: var(--color-on-surface-variant);
+}
+.state-icon { width: 32px; height: 32px; flex: none; }
+.state-title { font-size: 1rem; font-weight: 600; color: var(--color-on-surface); }
+.state-msg { font-size: .875rem; max-width: 36ch; }
+.state-error .state-icon, .state-error .state-title { color: var(--color-error); }
+.state-retry { align-self: center; margin-top: var(--space-xs); }
+/* Small ring spinner; with reduced motion it stays a static arc (see the media query below). */
+.spinner {
+  width: 24px; height: 24px; flex: none; border-radius: 50%;
+  border: 3px solid var(--color-outline-variant); border-top-color: var(--color-primary);
+  animation: spin .75s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+/* In-place notice above the prayer text (te'amim still loading): compact row. */
+.state-inline .state { flex-direction: row; justify-content: center; padding: var(--space-sm) var(--space-md); }
+
 /* ── Utilities ── */
 .muted { color: var(--color-on-surface-variant); }
 .center { text-align: center; padding: 32px 16px; }
@@ -491,6 +511,7 @@ button:disabled, select:disabled, input:disabled { opacity: .38; cursor: default
     transition-duration: .001ms !important;
     scroll-behavior: auto !important;
   }
+  .spinner { animation: none; }
 }
 
 /* ── Touch targets: 40px on desktop, 48px for coarse pointers (DS 2.5.6) ── */

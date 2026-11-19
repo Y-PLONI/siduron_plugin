@@ -128,6 +128,15 @@
   // Points to the start of the line: the back direction (mirrored in RTL by CSS).
   var ICON_BACK = svgIcon('icon-flip', '<polyline points="15 6 9 12 15 18"/>');
 
+  // Put a loading/empty/error state (SiduronRender.stateHtml) into `el`; a [data-retry]
+  // button in it runs onRetry.
+  function showState(el, kind, title, opts, onRetry) {
+    if (!el) return;
+    el.innerHTML = window.SiduronRender.stateHtml(kind, title, Object.assign({ retry: !!onRetry }, opts));
+    var b = el.querySelector('[data-retry]');
+    if (b && onRetry) b.onclick = onRetry;
+  }
+
   /* ────────────── Otzaria SDK helpers ────────────── */
   function hasOtzaria() { return typeof window.Otzaria !== 'undefined' && window.Otzaria.call; }
   async function call(method, params) {
@@ -725,7 +734,7 @@
     if (!el) return;
     var loc = renderLocationStrip();
     var times = STATE.times || await call('calendar.getDailyTimes');
-    if (!times || typeof times !== 'object') { el.innerHTML = loc + '<div class="muted">זמני היום אינם זמינים</div>'; return; }
+    if (!times || typeof times !== 'object') { el.innerHTML = loc + window.SiduronRender.stateHtml('empty', 'זמני היום אינם זמינים'); return; }
     var html = '';
     for (var i = 0; i < ZMAN_ORDER.length; i++) {
       var lbl = ZMAN_ORDER[i][0], keys = ZMAN_ORDER[i][1], val = null;
@@ -733,7 +742,7 @@
       if (val == null) continue;
       html += '<div class="zman"><span class="z-name">' + lbl + '</span><span class="z-val">' + window.SiduronRender.esc(String(val)) + '</span></div>';
     }
-    el.innerHTML = loc + (html ? '<div class="panel-card">' + html + '</div>' : '<div class="muted">זמני היום אינם זמינים</div>');
+    el.innerHTML = loc + (html ? '<div class="panel-card">' + html + '</div>' : window.SiduronRender.stateHtml('empty', 'זמני היום אינם זמינים'));
   }
 
   /* ────────────── Service tabs + rendering ────────────── */
@@ -863,7 +872,9 @@
     } catch (e) {
       // The detail goes to the console; the page only says what failed.
       console.warn('[siduron] failed to assemble the service:', e);
-      contentEl.innerHTML = '<div class="muted center">לא ניתן היה להציג את התפילה. נסו לבחור שוב או להפעיל מחדש את התוסף.</div>';
+      showState(contentEl, 'error', 'לא ניתן היה להציג את התפילה',
+        { message: 'נסו שוב, או בחרו תפילה אחרת. אם זה חוזר — הפעילו מחדש את התוסף.' },
+        function () { openService(id); });
       return;
     }
     STATE.nav = result.nav;
@@ -880,8 +891,8 @@
     if (showTeamimLoading) {
       var ind = document.createElement('div');
       ind.id = 'teamim-loading';
-      ind.className = 'muted center';
-      ind.textContent = 'טוען טעמים…';
+      ind.className = 'state-inline';
+      ind.innerHTML = window.SiduronRender.stateHtml('loading', 'טוען טעמים…');
       contentEl.insertBefore(ind, contentEl.firstChild);
     }
     renderNavList();
@@ -902,7 +913,10 @@
     restoreScroll();
     saveRestoreState();
 
-    if (!window.SiduronExtras) { contentEl.innerHTML = '<div class="muted center">התוספות לא נטענו.</div>'; return; }
+    if (!window.SiduronExtras) {
+      showState(contentEl, 'error', 'התוספות לא נטענו', {}, function () { renderExtrasView(); });
+      return;
+    }
 
     if (!STATE.extra) {
       // Menu of extras.
@@ -972,7 +986,7 @@
   function renderNavList() {
     var el = document.getElementById('nav-body');
     if (!el) return;
-    if (!STATE.nav.length) { el.innerHTML = '<div class="muted">אין קטעים</div>'; return; }
+    if (!STATE.nav.length) { el.innerHTML = window.SiduronRender.stateHtml('empty', 'אין קטעים'); return; }
     el.innerHTML = '<div class="panel-card">' + STATE.nav.map(function (n) {
       return '<button class="nav-item" data-anchor="' + n.anchor + '">' + window.SiduronRender.esc(divineText(n.label)) + '</button>';
     }).join('') + '</div>';
@@ -1583,8 +1597,10 @@
       }
     } catch (e) {
       console.warn('[siduron] boot failed:', e);
-      document.getElementById('content').innerHTML =
-        '<div class="muted center">לא ניתן היה לטעון את הסידור. נסו לפתוח את התוסף מחדש.</div>';
+      var contentEl = document.getElementById('content');
+      showState(contentEl, 'error', 'לא ניתן היה לטעון את הסידור',
+        { message: 'נסו שוב. אם זה חוזר — פתחו את התוסף מחדש.' },
+        function () { showState(contentEl, 'loading', 'טוען…'); boot(); });
     }
   }
 

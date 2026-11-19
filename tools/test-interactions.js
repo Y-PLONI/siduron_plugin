@@ -227,6 +227,31 @@ setTimeout(async function () {
   });
   check('close buttons: SVG only (no ✕ text)', Array.from(doc.querySelectorAll('[data-close]')).every(b => !!b.querySelector('svg') && b.textContent.trim() === ''));
 
+  // Loading / empty / error states.
+  const htmlSrc = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+  check('initial content is a loading state with a spinner (not bare text)', /class="state state-loading"[^>]*role="status"[\s\S]*?class="spinner"/.test(htmlSrc));
+  {
+    const R = win.SiduronRender;
+    const err = R.stateHtml('error', 'x<b>', { message: 'm&', retry: true });
+    check('stateHtml: error has role=alert, icon, title, message, retry; text is escaped',
+      /role="alert"/.test(err) && /state-icon/.test(err) && /state-title">x&lt;b&gt;</.test(err) && /state-msg">m&amp;</.test(err) && /data-retry>נסה שוב</.test(err));
+    check('stateHtml: loading has a spinner and role=status', /spinner/.test(R.stateHtml('loading', 't')) && /role="status"/.test(R.stateHtml('loading', 't')));
+    const realAssemble = win.SiduronAssembler.assemble, realWarn = console.warn;
+    console.warn = () => {};
+    win.SiduronAssembler.assemble = () => { throw new Error('boom'); };
+    doc.querySelector('#tabs #tab-mincha').click();
+    const es = doc.querySelector('#content .state-error');
+    check('failed service: error state with alert role, icon and a retry button', !!es && es.getAttribute('role') === 'alert' && !!es.querySelector('svg.state-icon') && !!es.querySelector('button[data-retry]'));
+    win.SiduronAssembler.assemble = realAssemble;
+    const rb = doc.querySelector('#content [data-retry]');
+    if (rb) rb.click();
+    console.warn = realWarn;
+    check('retry re-runs the failed load and renders the prayer', !doc.querySelector('#content .state-error') && !!doc.querySelector('#content .prayer'));
+    doc.getElementById('tab-shacharit').click();
+  }
+  check('CSS: error state uses --color-error, spinner is static under reduced motion',
+    /\.state-error \.state-icon[^{]*\{[^}]*var\(--color-error\)/.test(cssAll) && /prefers-reduced-motion[\s\S]*\.spinner\s*\{\s*animation:\s*none/.test(cssAll));
+
   // Fixed top bar with the plugin name (DESIGN_GUIDE: Top Bar).
   const topbar = doc.querySelector('header.topbar');
   check('top bar: header.topbar with the plugin name in <h1>', !!topbar && !!topbar.querySelector('h1') && topbar.querySelector('h1').textContent === 'סידורון');

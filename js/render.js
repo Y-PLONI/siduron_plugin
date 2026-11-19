@@ -133,5 +133,27 @@
     return { html: out.join('\n'), nav: nav };
   }
 
-  global.SiduronRender = { render: render, esc: esc };
+  // Loading / empty / error state block (DESIGN_GUIDE "loading, empty and error states"):
+  // an icon (spinner while loading), a title, an optional message and — for an error —
+  // a "נסה שוב" button the caller wires up through its [data-retry] attribute.
+  var STATE_ICONS = {
+    error: '<circle cx="12" cy="12" r="9"/><line x1="12" y1="7.5" x2="12" y2="12.5"/><line x1="12" y1="16" x2="12" y2="16.2"/>',
+    empty: '<circle cx="12" cy="12" r="9"/><line x1="8" y1="12" x2="16" y2="12"/>',
+  };
+  // kind: 'loading' | 'empty' | 'error'. opts: { message, retry }. Texts are escaped.
+  function stateHtml(kind, title, opts) {
+    opts = opts || {};
+    var icon = kind === 'loading'
+      ? '<span class="spinner" aria-hidden="true"></span>'
+      : '<svg class="state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ' +
+        'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">' +
+        (STATE_ICONS[kind] || STATE_ICONS.empty) + '</svg>';
+    return '<div class="state state-' + kind + '" role="' + (kind === 'error' ? 'alert' : 'status') + '">' + icon +
+      '<div class="state-title">' + esc(title) + '</div>' +
+      (opts.message ? '<div class="state-msg">' + esc(opts.message) + '</div>' : '') +
+      (opts.retry ? '<button type="button" class="set-action state-retry" data-retry>נסה שוב</button>' : '') +
+      '</div>';
+  }
+
+  global.SiduronRender = { render: render, esc: esc, stateHtml: stateHtml };
 })(typeof window !== 'undefined' ? window : this);

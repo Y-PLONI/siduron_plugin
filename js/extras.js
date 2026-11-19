@@ -10,6 +10,11 @@
   'use strict';
 
   function data() { return global.SIDDUR_EXTRAS; }
+  // Empty-state block (js/render.js stateHtml) with a plain fallback when render.js isn't loaded.
+  function emptyState(title) {
+    var R = global.SiduronRender;
+    return R && R.stateHtml ? R.stateHtml('empty', title) : '<div class="muted center">' + esc(title) + '</div>';
+  }
   function esc(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
   function escKeepBold(s) { return esc(s).replace(/&lt;b&gt;/g, '<b>').replace(/&lt;\/b&gt;/g, '</b>'); }
 
@@ -84,7 +89,7 @@
   // Render one extra → { html, nav } (nav = section headers for jump-to-section).
   function renderExtra(id, nusach, dayFlags) {
     var item = findItem(id);
-    if (!item) return { html: '<div class="muted center">התוספת אינה זמינה.</div>', nav: [] };
+    if (!item) return { html: emptyState('התוספת אינה זמינה'), nav: [] };
     var segs = item.nusachim[nusach] || item.nusachim.ashkenaz ||
       item.nusachim[Object.keys(item.nusachim)[0]] || [];
     var has = makeHas(dayFlags);
@@ -115,7 +120,7 @@
   // Render the extras menu (grouped by category) → HTML with data-extra buttons.
   function renderMenu() {
     var items = (data() && data().items) || [];
-    if (!items.length) return '<div class="muted center">אין תוספות.</div>';
+    if (!items.length) return emptyState('אין תוספות');
     var byCat = {}, order = [];
     items.forEach(function (it) {
       if (!byCat[it.category]) { byCat[it.category] = []; order.push(it.category); }
