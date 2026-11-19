@@ -13,7 +13,6 @@ on:
       - 'index.html'
       - 'css/**'
       - 'data/**'
-      - 'fonts/**'
       - 'icon/**'
       - 'js/**'
       - 'vendor/**'
