@@ -31,10 +31,11 @@
   /* Spacing scale (theme.spacing). */
   --space-2xs: 2px; --space-xs: 4px; --space-sm: 8px; --space-smd: 12px;
   --space-md: 16px; --space-lg: 24px; --space-xl: 32px;
-  --color-primary-subtle: rgba(103, 80, 164, 0.12);
-  --field-fill: rgba(29, 27, 32, 0.07);   /* dropdown field fill (idle) */
-  --field-fill-hover:  rgba(29, 27, 32, 0.12);   /* dropdown field fill (hover/focus) */
-  --color-primary-border:    rgba(103, 80, 164, 0.22); /* outlined action button border */
+  --color-primary-subtle: color-mix(in srgb, var(--color-primary) 12%, transparent);
+  --color-secondary-subtle: color-mix(in srgb, var(--color-secondary) 12%, transparent);
+  --field-fill: color-mix(in srgb, var(--color-on-surface) 7%, transparent);   /* dropdown field fill (idle) */
+  --field-fill-hover: color-mix(in srgb, var(--color-on-surface) 12%, transparent);   /* dropdown field fill (hover/focus) */
+  --color-primary-border: color-mix(in srgb, var(--color-primary) 22%, transparent); /* outlined action button border */
   /* State layers (DS 2.1.1): onSurface 8% hover, 12% pressed. */
   /* Scrim and shadow colours; the host theme overrides --color-scrim / --color-shadow. */
   --color-scrim: #000000;

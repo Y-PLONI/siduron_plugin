@@ -231,14 +231,7 @@
     }
     var sp = theme.spacing;
     if (sp && typeof sp === 'object') SPACING_KEYS.forEach(function (k) { setPx('--space-' + k, sp[k], 0, 64); });
-    if (/^#[0-9a-fA-F]{6}$/.test(String(cs.primary))) {
-      r.style.setProperty('--color-primary-subtle', hexToRgba(cs.primary, 0.12));
-      r.style.setProperty('--color-primary-border', hexToRgba(cs.primary, 0.22));
-    }
-    if (/^#[0-9a-fA-F]{6}$/.test(String(cs.onSurface))) {
-      r.style.setProperty('--field-fill', hexToRgba(cs.onSurface, 0.07));
-      r.style.setProperty('--field-fill-hover', hexToRgba(cs.onSurface, 0.12));
-    }
+    // Subtle / border / field-fill tints are derived in CSS (color-mix) from the roles above.
     document.body.classList.toggle('dark', theme.mode === 'dark');
     if (theme.typography) {
       var tp = theme.typography;
@@ -254,12 +247,6 @@
       // Remember Otzaria's chosen font so "default" follows the rest of the app.
       if (typeof tp.fontFamily === 'string' && FONT_NAME_RE.test(tp.fontFamily)) { STATE.themeFont = tp.fontFamily; applyFont(); }
     }
-  }
-  function hexToRgba(hex, a) {
-    try {
-      return 'rgba(' + parseInt(hex.slice(1, 3), 16) + ',' + parseInt(hex.slice(3, 5), 16) +
-        ',' + parseInt(hex.slice(5, 7), 16) + ',' + a + ')';
-    } catch (e) { return 'rgba(103,80,164,' + a + ')'; }
   }
 
   /* ────────────── Hebrew date / numerals ────────────── */
