@@ -45,7 +45,7 @@
   --font-size-base: 22px;
   --line-height: 1.85;
   --content-width: 760px;
-  --font-ui: 'Heebo', 'Segoe UI', 'Noto Sans Hebrew', system-ui, sans-serif;
+  --font-ui: 'Segoe UI', 'SF Pro Text', 'Noto Sans Hebrew', system-ui, Arial, sans-serif;   /* Otzaria's system UI stack (DS 1.3) */
   --font-main: 'FrankRuhlCLM', 'Frank Ruhl Libre', 'David', 'Noto Serif Hebrew', serif;
   --field-h: 40px;               /* input / select / segmented height (theme density) */
   --radius: 8px;                 /* the single corner radius (DS 1.2) */

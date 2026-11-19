@@ -204,6 +204,9 @@
     'error', 'onError', 'errorContainer', 'onErrorContainer', 'outline', 'outlineVariant',
     'inverseSurface', 'onInverseSurface', 'inversePrimary', 'shadow', 'scrim'];
   // theme.surfaces → --surface-<kebab-case>.
+  // A CSS font-family list: names, quotes, commas — nothing that could end the declaration.
+  var UI_FONT_LIST_RE = /^[A-Za-z0-9 ,'._-]{1,300}$/;
+  var UI_FONT_FALLBACK = "system-ui, 'Segoe UI', 'Noto Sans Hebrew', sans-serif";
   var SURFACE_KEYS = { reader: 'reader', panel: 'panel', card: 'card', topBar: 'top-bar' };
   var SPACING_KEYS = ['2xs', 'xs', 'sm', 'smd', 'md', 'lg', 'xl'];
   function kebab(k) { return k.replace(/[A-Z]/g, function (c) { return '-' + c.toLowerCase(); }); }
@@ -238,6 +241,13 @@
     document.body.classList.toggle('dark', theme.mode === 'dark');
     if (theme.typography) {
       var tp = theme.typography;
+      // UI font (buttons, menus, fields — never the reading font): Otzaria's own
+      // system stack (uiFont) when sent, else the plugin-facing uiFontFamily.
+      // An older host sends neither and the :root stack stays.
+      if (typeof tp.uiFont === 'string' && UI_FONT_LIST_RE.test(tp.uiFont)) r.style.setProperty('--font-ui', tp.uiFont);
+      else if (typeof tp.uiFontFamily === 'string' && FONT_NAME_RE.test(tp.uiFontFamily)) {
+        r.style.setProperty('--font-ui', "'" + tp.uiFontFamily + "', " + UI_FONT_FALLBACK);
+      }
       if (numIn(tp.lineHeight, 1, 3)) r.style.setProperty('--line-height', String(tp.lineHeight));
       // Remember Otzaria's chosen font so "default" follows the rest of the app.
       if (typeof tp.fontFamily === 'string' && FONT_NAME_RE.test(tp.fontFamily)) { STATE.themeFont = tp.fontFamily; applyFont(); }
