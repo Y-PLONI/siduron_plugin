@@ -212,7 +212,7 @@ setTimeout(async function () {
       await wait(250);
       const st = w2.SiduronApp.state;
       const ex = w2.SiduronExtras && w2.SiduronExtras.list()[0];
-      const out = { nusach: st.nusach, gender: st.gender, textWidth: st.textWidth, fontSize: st.fontSize, fontFamily: st.fontFamily, withMinyan: st.withMinyan, divine: st.divineName, service: st.service, extra: st.extra, errs: errs.length, firstExtra: ex && ex.id };
+      const out = { inIsrael: st.isInIsrael, country: st.country, city: st.city, nusach: st.nusach, gender: st.gender, textWidth: st.textWidth, fontSize: st.fontSize, fontFamily: st.fontFamily, withMinyan: st.withMinyan, divine: st.divineName, service: st.service, extra: st.extra, errs: errs.length, firstExtra: ex && ex.id };
       Object.defineProperty(out, 'h2', { value: h2 }); Object.defineProperty(out, 'win2', { value: w2 });
       if (!keepOpen) w2.close();
       return out;
@@ -289,6 +289,17 @@ setTimeout(async function () {
       check('teamim: not loading once it settled', T.isLoading('ashkenaz', 'shacharit') === false);
       wt.close();
     }
+
+    // inIsrael comes from calendar.getCities (the host's table), locations.js is the fallback.
+    const cityHost = (cities, city) => (m) => m === 'calendar.getCities' ? cities : (m === 'settings.get' ? city : undefined);
+    r = await bootWith(undefined, cityHost([{ name: 'ניו יורק', country: 'ארצות הברית', inIsrael: false }, { name: 'ירושלים', country: 'ארץ ישראל', inIsrael: true }], 'ניו יורק'));
+    check('city: host getCities → חו"ל', r.inIsrael === false && r.country === 'ארצות הברית' && r.city === 'ניו יורק', JSON.stringify(r));
+    r = await bootWith(undefined, cityHost([{ name: 'ירושלים', country: 'ארץ ישראל', inIsrael: false }], 'ירושלים'));
+    check('city: the host answer wins over locations.js', r.inIsrael === false, JSON.stringify(r));
+    r = await bootWith(undefined, cityHost(new Error('unknown'), 'ירושלים'));
+    check('city: no getCities → locations.js fallback (Israel)', r.inIsrael === true && r.country === 'ארץ ישראל', JSON.stringify(r));
+    r = await bootWith(undefined, cityHost([{ name: 'אחר', country: 'x', inIsrael: false }], 'ירושלים'));
+    check('city: a city missing from the host list → locations.js fallback', r.inIsrael === true, JSON.stringify(r));
 
     // Divine-name default follows Otzaria's holyName display choice.
     const holy = v => (m => m === 'app.getDivineNamesDisplay' ? { holyName: v, otherNames: 'asIs', filtered: v !== 'asIs' } : undefined);

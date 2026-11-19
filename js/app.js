@@ -366,9 +366,32 @@
   // city→country table (data/locations.js). Falls back to Israel when unknown
   // (e.g. standalone preview, or a city missing from the table).
   var ISRAEL_COUNTRY = 'ארץ ישראל';
+  // calendar.getCities (0.9.97) lists the cities the host's calendar knows with
+  // their country and `inIsrael` — the host's own answer, so it can't drift from
+  // data/locations.js (kept as the fallback). The list is static: fetched once.
+  var hostCities = null;
+  async function hostCityInfo(name) {
+    if (!hostCities) {
+      var list = await call('calendar.getCities');
+      if (Array.isArray(list) && list.length) hostCities = list;
+    }
+    if (!hostCities) return null;
+    for (var i = 0; i < hostCities.length; i++) {
+      var c = hostCities[i];
+      if (c && c.name === name && typeof c.inIsrael === 'boolean') return c;
+    }
+    return null;
+  }
   async function refreshLocation() {
     var city = await call('settings.get', { key: 'key-selected-city' });
     if (typeof city !== 'string' || !city) city = null;
+    var info = city ? await hostCityInfo(city) : null;
+    if (info) {
+      STATE.city = city;
+      STATE.country = typeof info.country === 'string' ? info.country : null;
+      STATE.isInIsrael = info.inIsrael;
+      return;
+    }
     var byCity = (window.SIDURON_LOCATIONS && window.SIDURON_LOCATIONS.byCity) || {};
     var country = city ? (byCity[city] || null) : null;
     STATE.city = city;
