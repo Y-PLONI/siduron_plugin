@@ -195,6 +195,7 @@ setTimeout(async function () {
       w2.Otzaria = {
         call: (m, p) => {
           const r = hostData && hostData(m, p);
+          if (r && r.__reject) return Promise.reject(new Error('not ready'));
           return r instanceof Error ? Promise.resolve({ success: false, error: { code: 'error.unknown_method', message: m } })
             : Promise.resolve({ success: true, data: r === undefined ? null : r });
         },
@@ -211,7 +212,7 @@ setTimeout(async function () {
       await wait(250);
       const st = w2.SiduronApp.state;
       const ex = w2.SiduronExtras && w2.SiduronExtras.list()[0];
-      const out = { divine: st.divineName, service: st.service, extra: st.extra, errs: errs.length, firstExtra: ex && ex.id };
+      const out = { nusach: st.nusach, gender: st.gender, textWidth: st.textWidth, fontSize: st.fontSize, fontFamily: st.fontFamily, withMinyan: st.withMinyan, divine: st.divineName, service: st.service, extra: st.extra, errs: errs.length, firstExtra: ex && ex.id };
       Object.defineProperty(out, 'h2', { value: h2 }); Object.defineProperty(out, 'win2', { value: w2 });
       if (!keepOpen) w2.close();
       return out;
@@ -235,6 +236,37 @@ setTimeout(async function () {
       r = await bootWith(restore);
       check('restore: ' + label + ' → normal open', r.service === base.service && r.errs === 0, JSON.stringify(r));
     }
+
+    // Stored settings: valid values load, anything unexpected keeps the default.
+    const stored = obj => (m, p) => (m === 'storage.get' && p && p.key in obj ? obj[p.key] : undefined);
+    const dflt = await bootWith(undefined, stored({}));
+    r = await bootWith(undefined, stored({ nusach: 'sfard', gender: 'female', textWidth: '920', fontSize: 30, fontFamily: 'David', withMinyan: false, divineName: 'hashem' }));
+    check('stored settings load as before', r.nusach === 'sfard' && r.gender === 'female' && r.textWidth === '920' && r.fontSize === 30 &&
+      r.fontFamily === 'David' && r.withMinyan === false && r.divine === 'hashem', JSON.stringify(r));
+    r = await bootWith(undefined, stored({ nusach: 'klingon', gender: 7, textWidth: 'huge', fontSize: 'big', fontFamily: "x';}body{", withMinyan: 'yes', divineName: 'nope' }));
+    check('unexpected stored values fall back to the defaults',
+      r.nusach === dflt.nusach && r.gender === dflt.gender && r.textWidth === dflt.textWidth && r.fontSize === dflt.fontSize &&
+      r.fontFamily === dflt.fontFamily && r.withMinyan === dflt.withMinyan && r.divine === dflt.divine && r.errs === 0, JSON.stringify(r) + ' vs ' + JSON.stringify(dflt));
+    // storage.set failing (rejected or success:false) never becomes an unhandled rejection.
+    const unhandled = [];
+    const onUnhandled = e => unhandled.push(String(e));
+    process.on('unhandledRejection', onUnhandled);
+    const warns = [], realWarn = console.warn;
+    console.warn = (...a) => warns.push(a.join(' '));
+    r = await bootWith(undefined, m => m === 'storage.set' ? { __reject: true } : undefined, true);
+    r.win2.document.getElementById('btn-settings').onclick();
+    r.win2.document.querySelector('#set-gender [data-val="female"]').click();
+    await wait(50);
+    r.win2.close();
+    r = await bootWith(undefined, m => m === 'storage.set' ? new Error('x') : undefined, true);
+    r.win2.document.getElementById('btn-settings').onclick();
+    r.win2.document.querySelector('#set-gender [data-val="female"]').click();
+    await wait(50);
+    r.win2.close();
+    console.warn = realWarn;
+    process.off('unhandledRejection', onUnhandled);
+    check('a failing storage.set is not an unhandled rejection', unhandled.length === 0, unhandled.join('|'));
+    check('a failing storage.set is logged', warns.some(w => /storage\.set\(gender\)/.test(w)), warns.join('|'));
 
     // Divine-name default follows Otzaria's holyName display choice.
     const holy = v => (m => m === 'app.getDivineNamesDisplay' ? { holyName: v, otherNames: 'asIs', filtered: v !== 'asIs' } : undefined);

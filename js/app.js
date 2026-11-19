@@ -141,7 +141,16 @@
       : String(err || '');
   }
   async function storageGet(key) { var v = await call('storage.get', { key: key }); return v; }
-  function storageSet(key, value) { if (hasOtzaria()) window.Otzaria.call('storage.set', { key: key, value: value }); }
+  // Fire-and-forget, but never an unhandled rejection (the SDK rejects every call
+  // before plugin.boot) — a failure is only logged, the setting stays in memory.
+  function storageSet(key, value) {
+    if (!hasOtzaria()) return;
+    try {
+      Promise.resolve(window.Otzaria.call('storage.set', { key: key, value: value })).then(function (r) {
+        if (r && r.success === false) console.warn('[siduron] storage.set(' + key + ') failed:', r.error);
+      }, function (e) { console.warn('[siduron] storage.set(' + key + ') rejected:', e && e.message || e); });
+    } catch (e) { console.warn('[siduron] storage.set(' + key + ') threw:', e && e.message || e); }
+  }
 
   /* ────────────── Restore state (plugin.setRestoreState) ────────────── */
   // The host may evict this tab's WebView after it has been hidden for a while and
@@ -1218,19 +1227,38 @@
   }
 
   /* ────────────── Load / save settings ────────────── */
+  // What each stored setting may hold — anything else (a hand-edited or
+  // older-format value) is ignored and the default stays. Stored key names and
+  // formats are unchanged, so existing users' data loads as before.
+  function oneOf(list) { return function (v) { return list.indexOf(v) >= 0 ? v : undefined; }; }
+  var STORED_SETTINGS = {
+    nusach: oneOf(NUSACHIM.map(function (n) { return n.id; })),
+    gender: oneOf(['male', 'female']),
+    withMinyan: function (v) { return typeof v === 'boolean' ? v : undefined; },
+    teamim: function (v) { return v === true; },
+    purimDate: oneOf(['fourteenth', 'fifteenth', 'both']),
+    divineName: function (v) { return isDivineName(v) ? v : undefined; },
+    fontSize: function (v) { return isFinite(parseInt(v, 10)) ? v : undefined; },   // clamped by applyFontSize
+    // Goes into a CSS custom property → plain family-name characters only.
+    fontFamily: function (v) { return typeof v === 'string' && /^[A-Za-z0-9 _-]{0,64}$/.test(v) ? v : undefined; },
+    textWidth: function (v) { v = String(v); return ['600', '760', '920', 'full'].indexOf(v) >= 0 ? v : undefined; },
+    service: function (v) { return typeof v === 'string' && serviceById(v) ? v : undefined; },
+  };
   async function loadSettings() {
     // 'isInIsrael' is intentionally absent — it's derived from Otzaria's
     // selected city (see refreshLocation), not stored as a manual preference.
-    var keys = ['nusach', 'gender', 'withMinyan', 'teamim', 'purimDate', 'divineName', 'fontSize', 'fontFamily', 'textWidth', 'service'];
-    // STATE.divineName starts as 'yy', which would pass the validity check below even
-    // when nothing was ever stored — clear it so "never chosen" is told apart.
+    var keys = Object.keys(STORED_SETTINGS);
+    // Read in parallel — one round trip instead of ten before the first paint.
+    // (storageGet never rejects: call() turns a failure into null.)
+    var values = await Promise.all(keys.map(storageGet));
+    // STATE.divineName starts as 'yy', which would pass the validity check even when
+    // nothing was ever stored — clear it so "never chosen" is told apart.
     STATE.divineName = null;
-    for (var i = 0; i < keys.length; i++) {
-      var k = keys[i]; var v = await storageGet(k);
-      if (v == null) continue;
-      if (k === 'fontSize') STATE.fontSize = v;
-      else STATE[k] = v;
-    }
+    keys.forEach(function (k, i) {
+      if (values[i] == null) return;
+      var v = STORED_SETTINGS[k](values[i]);
+      if (v !== undefined) STATE[k] = v;
+    });
     STATE.teamim = STATE.teamim === true;
     if (window.SiduronTeamim) window.SiduronTeamim.setEnabled(STATE.teamim);
     if (!isDivineName(STATE.divineName)) STATE.divineName = null;
@@ -1258,7 +1286,8 @@
   async function hostDivineNameStyle() {
     try {
       var d = await call('app.getDivineNamesDisplay');
-      var style = d && typeof d.holyName === 'string' && HOST_HOLY_NAME_STYLE[d.holyName];
+      var style = d && typeof d.holyName === 'string' &&
+        Object.prototype.hasOwnProperty.call(HOST_HOLY_NAME_STYLE, d.holyName) && HOST_HOLY_NAME_STYLE[d.holyName];
       if (style) return style;
     } catch (e) { /* fall through to the legacy key */ }
     // Older host / unexpected answer: the old boolean preference.

@@ -63,8 +63,15 @@
       } catch (e) { /* ignore */ }
     });
   }
+  // Fire-and-forget; never an unhandled rejection (the SDK rejects every call
+  // before plugin.boot). A failure only costs a re-read of the books next time.
   function saveCache() {
-    if (hasOtzaria()) global.Otzaria.call('storage.set', { key: CACHE_KEY, value: cache });
+    if (!hasOtzaria()) return;
+    try {
+      Promise.resolve(global.Otzaria.call('storage.set', { key: CACHE_KEY, value: cache })).then(function (r) {
+        if (r && r.success === false && global.console) console.warn('[siduron] teamim cache not saved:', r.error);
+      }, function (e) { if (global.console) console.warn('[siduron] teamim cache not saved:', e && e.message || e); });
+    } catch (e) { if (global.console) console.warn('[siduron] teamim cache not saved:', e && e.message || e); }
   }
 
   /* ───── מספרים עבריים (גימטריה) ───── */
