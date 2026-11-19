@@ -143,6 +143,44 @@
   async function storageGet(key) { var v = await call('storage.get', { key: key }); return v; }
   function storageSet(key, value) { if (hasOtzaria()) window.Otzaria.call('storage.set', { key: key, value: value }); }
 
+  /* ────────────── Restore state (plugin.setRestoreState) ────────────── */
+  // The host may evict this tab's WebView after it has been hidden for a while and
+  // reload the page on return; plugin.boot then carries the last state saved here
+  // as payload.restore.state. Saved on every change of the open view (not only on
+  // suspend): { schemaVersion: 1, service, extra, day }. `day` is the civil day it
+  // was saved on — a restored view from a previous day is dropped, so the plugin
+  // still opens on the prayer that fits the time of day. Never holds the picked
+  // custom date (that choice is deliberately not persisted).
+  var RESTORE_SCHEMA = 1;
+  var restoredView = null;          // { service, extra } validated from plugin.boot, or null
+  var lastRestoreSig = '';
+  function saveRestoreState() {
+    if (!hasOtzaria() || !STATE.service) return;
+    var state = { schemaVersion: RESTORE_SCHEMA, service: STATE.service,
+      extra: STATE.service === 'extras' ? (STATE.extra || null) : null, day: localIso(new Date()) };
+    var sig = JSON.stringify(state);
+    if (sig === lastRestoreSig) return;
+    lastRestoreSig = sig;
+    call('plugin.setRestoreState', { state: state }).then(function (r) {
+      if (r === null) lastRestoreSig = '';      // failed / host not ready — try again at the next change
+    });
+  }
+  // Validate payload.restore.state; anything unexpected → null (a normal first open).
+  function parseRestoreState(restore) {
+    try {
+      var st = restore && restore.state;
+      if (!st || typeof st !== 'object' || st.schemaVersion !== RESTORE_SCHEMA) return null;
+      if (typeof st.service !== 'string' || !serviceById(st.service)) return null;
+      if (st.day !== localIso(new Date())) return null;
+      var extra = null;
+      if (st.service === 'extras' && typeof st.extra === 'string' && window.SiduronExtras) {
+        var list = window.SiduronExtras.list();
+        for (var i = 0; i < list.length; i++) if (list[i].id === st.extra) extra = st.extra;
+      }
+      return { service: st.service, extra: extra };
+    } catch (e) { return null; }
+  }
+
   /* ────────────── Theme ────────────── */
   function applyTheme(theme) {
     if (!theme || !theme.colorScheme) return;
@@ -676,6 +714,7 @@
 
     if (svc.extras) { renderExtrasView(keepScroll); return; }
     STATE.extra = null;
+    saveRestoreState();
 
     var contentEl = document.getElementById('content');
     var result;
@@ -739,6 +778,7 @@
     var readerTop = keepScroll && sc ? sc.scrollTop : 0;
     var restoreScroll = function () { contentEl.scrollTop = contentTop; if (sc) sc.scrollTop = readerTop; };
     restoreScroll();
+    saveRestoreState();
 
     if (!window.SiduronExtras) { contentEl.innerHTML = '<div class="muted center">התוספות לא נטענו.</div>'; return; }
 
@@ -1277,7 +1317,12 @@
       // When the user picked another date in the calendar the time of day means
       // nothing, so the remembered service is kept (and the time pick is only the
       // fallback when nothing was saved).
-      if (isLiveDay() || !STATE.service) STATE.service = pickServiceByTime(STATE.times);
+      if (restoredView) {
+        // Page reloaded by the host (evicted tab, crash, update) — back to the open view.
+        STATE.service = restoredView.service;
+        STATE.extra = restoredView.extra;
+        restoredView = null;
+      } else if (isLiveDay() || !STATE.service) STATE.service = pickServiceByTime(STATE.times);
       renderTabs();
       buildSettings();
       openService(STATE.service || 'shacharit');
@@ -1307,6 +1352,7 @@
     window.Otzaria.on('plugin.boot', function (payload) {
       if (payload && payload.app && payload.app.platform) STATE.platform = payload.app.platform;
       if (payload && Array.isArray(payload.permissions)) STATE.permissions = payload.permissions;
+      restoredView = parseRestoreState(payload && payload.restore);
       applyTheme(payload && payload.theme);
       boot();
     });

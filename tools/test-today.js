@@ -43,6 +43,7 @@ win.Otzaria = {
     if (m === 'calendar.getDailyTimes') {
       return Promise.resolve({ success: true, data: { shkiah: '19:45', alotHaShachar: '04:30', chatzot: '12:40', _date: p && p.date } });
     }
+    if (m === 'plugin.setRestoreState') return Promise.resolve({ success: true, data: true });
     return Promise.resolve({ success: true, data: null });
   },
   on: (ev, fn) => { handlers[ev] = fn; }, off() {},
@@ -165,6 +166,70 @@ setTimeout(async function () {
     await picking; await wait(80);
     check('the picked day wins over an overlapping refresh', S.customDate === '2026-12-25' && ymd(S.date) === '2026-12-25', ymd(S.date));
     await I.setCustomDate(null);
+  }
+
+  console.log('\n══ plugin.setRestoreState ══');
+  {
+    const wait = ms => new Promise(r => setTimeout(r, ms));
+    const saves = calls.filter(c => c[0] === 'plugin.setRestoreState');
+    check('the open view is saved on boot/navigation', saves.length > 0);
+    check('saved state: schemaVersion 1 + service', saves.every(c => c[1].state && c[1].state.schemaVersion === 1 && typeof c[1].state.service === 'string'));
+    const before = calls.filter(c => c[0] === 'plugin.setRestoreState').length;
+    const tabs = doc.querySelectorAll('#tabs .tab');
+    const other = Array.from(tabs).find(b => !b.classList.contains('active'));
+    other.click(); await wait(20);
+    const after = calls.filter(c => c[0] === 'plugin.setRestoreState');
+    check('switching service saves the new state', after.length === before + 1 && after[after.length - 1][1].state.service !== undefined);
+    const activeTab = doc.querySelector('#tabs .tab.active');
+    activeTab.click(); await wait(20);
+    check('re-opening the same view does not re-save',
+      calls.filter(c => c[0] === 'plugin.setRestoreState').length === after.length);
+
+    // A fresh page booted by the host with payload.restore.
+    const today = (() => { const d = new Date(); const p2 = n => (n < 10 ? '0' : '') + n; return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()); })();
+    async function bootWith(restore) {
+      const d2 = new JSDOM(fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8'),
+        { runScripts: 'dangerously', url: 'file://' + ROOT + '/index.html' });
+      const w2 = d2.window, doc2 = w2.document, h2 = {}, errs = [];
+      w2.addEventListener('error', e => errs.push(String(e.message)));
+      w2.Otzaria = {
+        call: () => Promise.resolve({ success: true, data: null }),
+        on: (ev, fn) => { h2[ev] = fn; }, off() {},
+      };
+      ['vendor/hebcal.js', 'data/siddur-data.js', 'data/services-data.js', 'data/shabbat-data.js', 'data/slichot-data.js',
+        'data/extras-data.js', 'data/locations.js', 'js/calendar.js', 'js/assembler.js', 'js/render.js',
+        'js/services.js', 'js/extras.js', 'js/app.js'].forEach(f => {
+          const sc = doc2.createElement('script');
+          sc.textContent = fs.readFileSync(path.join(ROOT, f), 'utf8');
+          doc2.body.appendChild(sc);
+        });
+      h2['plugin.boot']({ app: { platform: 'windows' }, permissions: [], restore });
+      await wait(250);
+      const st = w2.SiduronApp.state;
+      const ex = w2.SiduronExtras && w2.SiduronExtras.list()[0];
+      const out = { service: st.service, extra: st.extra, errs: errs.length, firstExtra: ex && ex.id };
+      w2.close();
+      return out;
+    }
+    const base = await bootWith(undefined);
+    const pick = base.service === 'mincha' ? 'maariv' : 'mincha';
+    let r = await bootWith({ reason: 'discarded', state: { schemaVersion: 1, service: pick, extra: null, day: today } });
+    check('restore: the saved service is reopened (not the time-of-day pick)', r.service === pick && r.errs === 0, JSON.stringify(r));
+    r = await bootWith({ reason: 'discarded', state: { schemaVersion: 1, service: 'extras', extra: base.firstExtra, day: today } });
+    check('restore: an open extra is reopened', r.service === 'extras' && r.extra === base.firstExtra && !!base.firstExtra, JSON.stringify(r));
+    r = await bootWith({ reason: 'discarded', state: { schemaVersion: 1, service: 'extras', extra: 'no-such-extra', day: today } });
+    check('restore: an unknown extra opens the extras menu', r.service === 'extras' && r.extra === null && r.errs === 0, JSON.stringify(r));
+    const ignored = [
+      ['an unknown schemaVersion', { reason: 'discarded', state: { schemaVersion: 2, service: pick, day: today } }],
+      ['an unknown service', { reason: 'discarded', state: { schemaVersion: 1, service: 'nope', day: today } }],
+      ['a view saved on another day', { reason: 'discarded', state: { schemaVersion: 1, service: pick, day: '2001-01-01' } }],
+      ['a null state', { reason: 'crashed', state: null }],
+      ['a malformed state', { reason: 'discarded', state: 'garbage' }],
+    ];
+    for (const [label, restore] of ignored) {
+      r = await bootWith(restore);
+      check('restore: ' + label + ' → normal open', r.service === base.service && r.errs === 0, JSON.stringify(r));
+    }
   }
 
   console.log('\n══ זמני היום: מזהי זמנים של אוצריא ══');
