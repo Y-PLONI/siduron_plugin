@@ -121,6 +121,22 @@ setTimeout(async function () {
   await I.setCustomDate('not-a-date');
   check('invalid input is ignored (stays on today)', S.customDate === null);
 
+  console.log('\n══ זמני היום: מזהי זמנים של אוצריא ══');
+  setNow(2026, 7, 23, 14, 0);
+  const realOtz = win.Otzaria;
+  win.Otzaria = {
+    call: (m, p) => m === 'calendar.getDailyTimes'
+      ? Promise.resolve({ success: true, data: { sunset: '19:45', chatzos: '12:40', minchaGedolaGRA: '13:20', minchaKetanaGRA: '16:35', plagGRA: '18:30' } })
+      : realOtz.call(m, p),
+    on: realOtz.on, off() {},
+  };
+  await I.refreshDate();
+  const zText = doc.getElementById('zmanim-body').textContent;
+  check('zmanim panel shows מנחה קטנה from the host id minchaKetanaGRA', /מנחה קטנה\s*16:35/.test(zText), zText);
+  check('zmanim panel shows שקיעה / חצות / פלג from host ids',
+    /שקיעה\s*19:45/.test(zText) && /חצות\s*12:40/.test(zText) && /פלג המנחה\s*18:30/.test(zText), zText);
+  win.Otzaria = realOtz;
+
   check('no runtime errors', errors.length === 0, errors[0]);
   console.log('\n=== TODAY: ' + (fail ? 'FAIL' : 'PASS') + ' (' + pass + ' passed, ' + fail + ' failed) ===');
   process.exit(fail ? 1 : 0);

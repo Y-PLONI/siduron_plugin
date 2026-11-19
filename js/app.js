@@ -566,19 +566,22 @@
     }
   }
 
+  // Keys are the host's zman ids (calendar.getDailyTimes returns them as-is — see
+  // kZmanimRegistry in Otzaria's zmanim_helpers.dart). Several ids per row are
+  // alternatives; the first one the host returned wins.
   var ZMAN_ORDER = [
-    ['עלות השחר', ['alotHaShachar', 'alos72Zmanis', 'alos72Degrees', 'alotHashachar']],
-    ['משיכיר', ['misheyakir', 'misheyakir11', 'misheyakir10point2']],
-    ['הנץ החמה', ['sunrise', 'netz', 'seaLevelSunrise']],
-    ['סו״ז ק״ש מג״א', ['sofZmanShmaMGA', 'sofZmanShmaMGA72Degrees', 'sofZmanShmaMGA72Zmanis']],
-    ['סו״ז ק״ש גר״א', ['sofZmanShma', 'sofZmanShmaGRA']],
-    ['סו״ז תפילה גר״א', ['sofZmanTfilla', 'sofZmanTfilaGRA']],
-    ['חצות', ['chatzot', 'chatzos']],
-    ['מנחה גדולה', ['minchaGedola', 'minchaGedolaGRA']],
-    ['מנחה קטנה', ['minchaKetana']],
-    ['פלג המנחה', ['plagHaMincha', 'plagGRA']],
-    ['שקיעה', ['shkiah', 'sunset', 'seaLevelSunset']],
-    ['צאת הכוכבים', ['tzeit', 'tzet', 'tzeitGeonim8point5']],
+    ['עלות השחר', ['alos72Zmanis', 'alos72Degrees']],
+    ['משיכיר', ['misheyakir11', 'misheyakir10point2']],
+    ['הנץ החמה', ['sunrise']],
+    ['סו״ז ק״ש מג״א', ['sofZmanShmaMGA72Degrees', 'sofZmanShmaMGA72Zmanis']],
+    ['סו״ז ק״ש גר״א', ['sofZmanShmaGRA']],
+    ['סו״ז תפילה גר״א', ['sofZmanTfilaGRA']],
+    ['חצות', ['chatzos']],
+    ['מנחה גדולה', ['minchaGedolaGRA']],
+    ['מנחה קטנה', ['minchaKetanaGRA', 'minchaKetana']],
+    ['פלג המנחה', ['plagGRA']],
+    ['שקיעה', ['sunset', 'seaLevelSunset']],
+    ['צאת הכוכבים', ['tzeitGeonim8point5']],
   ];
   // Location strip above the times — surfaces which city the times were
   // computed for, so a wrong city in Otzaria can't silently skew the zmanim.
