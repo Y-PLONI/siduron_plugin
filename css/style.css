@@ -399,3 +399,12 @@ body { overflow: hidden; }
 /* ── Utilities ── */
 .muted { color: var(--c-on-surface-variant); }
 .center { text-align: center; padding: 40px 16px; }
+
+/* ── Reduced motion (DS 2.5.5) ── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    transition-duration: .001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
