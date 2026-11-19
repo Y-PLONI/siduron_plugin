@@ -412,7 +412,16 @@
   }
   function timesFor(d) { return call('calendar.getDailyTimes', { date: localIso(d) }); }
 
-  async function refreshDate() {
+  // Refreshes never overlap: each one starts after the previous finished, so a
+  // calendar/city refresh in flight can't write a stale day over the one the user
+  // just picked (setCustomDate), and the live tick can't interleave with either.
+  var refreshChain = Promise.resolve();
+  function refreshDate() {
+    var run = refreshChain.then(doRefreshDate);
+    refreshChain = run.then(null, function () {});
+    return run;
+  }
+  async function doRefreshDate() {
     await refreshLocation();
     var now = new Date();
     var custom = parseIso(STATE.customDate);
@@ -658,14 +667,14 @@
     var svc = serviceById(id);
     // Fall back when the requested service isn't available today (e.g. the
     // Omer tab on a non-Omer day, restored from saved state).
-    if (!svc || (svc.showIf && !svc.showIf())) { svc = serviceById('shacharit'); }
+    if (!svc || (svc.showIf && !svc.showIf())) { svc = serviceById('shacharit'); keepScroll = false; }
     if (!svc) return;
     id = svc.id;
     STATE.service = id;
     storageSet('service', id);
     renderTabs();
 
-    if (svc.extras) { renderExtrasView(); return; }
+    if (svc.extras) { renderExtrasView(keepScroll); return; }
     STATE.extra = null;
 
     var contentEl = document.getElementById('content');
@@ -722,10 +731,14 @@
   }
 
   /* ────────────── Extras (תוספות) view ────────────── */
-  function renderExtrasView() {
+  function renderExtrasView(keepScroll) {
     var contentEl = document.getElementById('content');
-    var sc = document.getElementById('reader-scroll'); if (sc) sc.scrollTop = 0;
-    contentEl.scrollTop = 0;
+    var sc = document.getElementById('reader-scroll');
+    // keepScroll: a background re-render of the same view — stay where the reader is.
+    var contentTop = keepScroll ? contentEl.scrollTop : 0;
+    var readerTop = keepScroll && sc ? sc.scrollTop : 0;
+    var restoreScroll = function () { contentEl.scrollTop = contentTop; if (sc) sc.scrollTop = readerTop; };
+    restoreScroll();
 
     if (!window.SiduronExtras) { contentEl.innerHTML = '<div class="muted center">התוספות לא נטענו.</div>'; return; }
 
@@ -734,6 +747,7 @@
       setTitle('תוספות וברכות');
       STATE.nav = [];
       contentEl.innerHTML = '<div class="extras-menu fade-in">' + applyDivineName(window.SiduronExtras.renderMenu()) + '</div>';
+      restoreScroll();
       var cards = contentEl.querySelectorAll('[data-extra]');
       for (var i = 0; i < cards.length; i++) {
         cards[i].onclick = function () { STATE.extra = this.getAttribute('data-extra'); renderExtrasView(); };
@@ -749,6 +763,7 @@
     contentEl.innerHTML =
       '<button class="extras-back" id="extras-back">‹ חזרה לרשימת התוספות</button>' +
       '<div class="prayer fade-in">' + applyDivineName(result.html) + '</div>';
+    restoreScroll();
     var back = document.getElementById('extras-back');
     if (back) back.onclick = function () { STATE.extra = null; renderExtrasView(); };
     renderNavList();
@@ -764,12 +779,31 @@
   // Re-read date + location from Otzaria, recompute flags, and repaint
   // everything (header, tabs, current service, zmanim, settings label).
   // Used on both calendar.date_changed and city changes.
+  //
+  // This is a background refresh (שקיעה / midnight / עלות השחר / a city change),
+  // not navigation: the reader keeps their place. The text is re-rendered only
+  // when something it is built from changed, and then in place (keepScroll).
   function refreshAndRerender() {
+    var before = viewSignature(), customAtStart = STATE.customDate;
     return refreshDate().then(function () {
+      // The user picked (or cleared) a day meanwhile — setCustomDate owns the repaint.
+      if (STATE.customDate !== customAtStart) return;
       renderTabs();
-      if (STATE.service) openService(STATE.service);
+      if (STATE.service && viewSignature() !== before) openService(STATE.service, true);
       buildSettings();
     });
+  }
+  // Everything the open view is rendered from besides the user's own settings:
+  // the service, whether its tab is still offered, the location, and the day
+  // flags (without the hebcal date object — only its plain fields).
+  function viewSignature() {
+    function sig(f) {
+      return f && [f.flags, f.omerDay, f.sukkotDay, f.pesachDay, f.chanukahDay, f.chagYt1Weekday,
+        f.upcomingParshah, f.year, f.month, f.day];
+    }
+    var svc = serviceById(STATE.service);
+    return JSON.stringify([STATE.service, STATE.extra, STATE.isInIsrael,
+      !svc || !svc.showIf || !!svc.showIf(), sig(STATE.dayFlags), sig(STATE.maarivFlags)]);
   }
 
   /* ────────────── Jump-to-section ────────────── */

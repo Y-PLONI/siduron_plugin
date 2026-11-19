@@ -141,6 +141,32 @@ setTimeout(async function () {
     handlers['plugin.resumed']();
   }
 
+  console.log('\n══ רענון ברקע לא מקפיץ את הקורא ══');
+  {
+    const wait = ms => new Promise(r => setTimeout(r, ms));
+    setNow(2026, 7, 23, 14, 0);
+    await I.setCustomDate(null);
+    const prayer0 = doc.querySelector('#content .prayer');
+    check('a prayer is open', !!prayer0);
+    handlers['settings.changed']({ key: 'key-selected-city', newValue: 'ירושלים' });
+    await wait(80);
+    check('nothing the text is built from changed → no re-render (scroll untouched)',
+      doc.querySelector('#content .prayer') === prayer0);
+    setNow(2026, 7, 23, 20, 0);                       // שקיעה: the halachic day becomes Friday
+    handlers['settings.changed']({ key: 'key-selected-city', newValue: 'ירושלים' });
+    await wait(80);
+    const prayer1 = doc.querySelector('#content .prayer');
+    check('a real day change re-renders…', !!prayer1 && prayer1 !== prayer0);
+    check('…in place: no fade-in (the scroll position is kept)', !prayer1.classList.contains('fade-in'));
+    // A city refresh racing a day the user picks must not paint over it.
+    setNow(2026, 7, 23, 14, 0);
+    handlers['settings.changed']({ key: 'key-selected-city', newValue: 'ירושלים' });
+    const picking = I.setCustomDate('2026-12-25');
+    await picking; await wait(80);
+    check('the picked day wins over an overlapping refresh', S.customDate === '2026-12-25' && ymd(S.date) === '2026-12-25', ymd(S.date));
+    await I.setCustomDate(null);
+  }
+
   console.log('\n══ זמני היום: מזהי זמנים של אוצריא ══');
   setNow(2026, 7, 23, 14, 0);
   const realOtz = win.Otzaria;
