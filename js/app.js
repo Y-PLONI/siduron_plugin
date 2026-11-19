@@ -728,25 +728,67 @@
   }
 
   /* ────────────── Service tabs + rendering ────────────── */
+  // The prayer switcher is a tablist: one view (#content) shows the selected service,
+  // so the buttons are tabs (aria-selected, roving tabindex, arrow keys) and #content
+  // is their tabpanel. Every openService() rebuilds the buttons, so focus that was on
+  // a tab is put back on the (new) selected one — keyboard users stay on the strip.
+  function onTabKeydown(e) {
+    var k = e.key;
+    if (k !== 'ArrowLeft' && k !== 'ArrowRight' && k !== 'Home' && k !== 'End') return;
+    var tabs = Array.prototype.slice.call(this.querySelectorAll('[role="tab"]'));
+    var i = tabs.indexOf(document.activeElement);
+    if (i < 0 || !tabs.length) return;
+    var rtl = document.documentElement.getAttribute('dir') === 'rtl';
+    var next = i;
+    if (k === 'Home') next = 0;
+    else if (k === 'End') next = tabs.length - 1;
+    else {
+      var step = (k === 'ArrowRight') === rtl ? -1 : 1;   // RTL: ArrowLeft goes forward
+      next = (i + step + tabs.length) % tabs.length;
+    }
+    e.preventDefault();
+    tabs[next].click();
+  }
   function renderTabs() {
     var bar = document.getElementById('tabs');
     var mini = document.getElementById('mini-tabs');   // compact copy shown while scrolled
+    var hadFocus = null;
+    [bar, mini].forEach(function (h) { if (h && h.contains(document.activeElement)) hadFocus = h; });
     if (bar) bar.innerHTML = '';
     if (mini) mini.innerHTML = '';
+    var hosts = [[bar, 'tab'], [mini, 'mini-tab']];
+    hosts.forEach(function (h) {
+      if (!h[0]) return;
+      h[0].setAttribute('role', 'tablist');
+      h[0].onkeydown = onTabKeydown;
+    });
     SERVICES.forEach(function (s) {
       if (s.showIf && !s.showIf()) return;
-      function make(cls, host) {
+      hosts.forEach(function (h) {
+        var host = h[0];
         if (!host) return;
+        var active = STATE.service === s.id;
         var b = document.createElement('button');
         b.type = 'button';
-        b.className = cls + (STATE.service === s.id ? ' active' : '');
+        b.id = h[1] + '-' + s.id;
+        b.className = h[1] + (active ? ' active' : '');
+        b.setAttribute('role', 'tab');
+        b.setAttribute('aria-selected', active ? 'true' : 'false');
+        b.tabIndex = active ? 0 : -1;
         b.textContent = s.he;
         b.onclick = function () { openService(s.id); };
         host.appendChild(b);
-      }
-      make('tab', bar);
-      make('mini-tab', mini);
+      });
     });
+    hosts.forEach(function (h) {
+      var host = h[0];
+      if (!host) return;
+      var cur = host.querySelector('[aria-selected="true"]');
+      if (!cur && host.firstChild) host.firstChild.tabIndex = 0;    // nothing selected yet: keep the strip reachable
+      if (host === hadFocus) (cur || host.firstChild || host).focus();
+    });
+    var panel = document.getElementById('content');
+    if (panel && STATE.service) panel.setAttribute('aria-labelledby', 'tab-' + STATE.service);
   }
 
   function serviceById(id) { for (var i = 0; i < SERVICES.length; i++) if (SERVICES[i].id === id) return SERVICES[i]; return null; }
@@ -1088,7 +1130,13 @@
   function setToggle(id, on, onChange) {
     var el = document.getElementById(id); if (!el) return;
     el.classList.toggle('on', !!on);
-    el.onclick = function () { var v = !el.classList.contains('on'); el.classList.toggle('on', v); onChange(v); };
+    el.setAttribute('aria-checked', on ? 'true' : 'false');
+    el.onclick = function () {
+      var v = !el.classList.contains('on');
+      el.classList.toggle('on', v);
+      el.setAttribute('aria-checked', v ? 'true' : 'false');
+      onChange(v);
+    };
   }
 
   /* ────────────── Font size ────────────── */

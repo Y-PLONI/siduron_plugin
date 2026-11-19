@@ -34,16 +34,16 @@
         <span class="hdr-date" id="hdr-date"></span>
         <span class="hdr-svc" id="hdr-svc"></span>
         <!-- ניווט תפילות קומפקטי: מוצג רק כשהכותרת מכווצת בגלילה (ראו renderTabs ב-js/app.js) -->
-        <nav class="mini-tabs" id="mini-tabs" aria-label="מעבר בין תפילות"></nav>
+        <nav class="mini-tabs" id="mini-tabs" role="tablist" aria-label="מעבר בין תפילות"></nav>
         <span class="hdr-season" id="hdr-season"></span>
       </div>
       <div class="hdr-badges" id="hdr-badges"></div>
-      <nav class="tabs" id="tabs"></nav>
+      <nav class="tabs" id="tabs" role="tablist" aria-label="תפילות"></nav>
     </div>
 
     <div class="reader-scroll" id="reader-scroll">
       <h2 class="service-title" id="hdr-title"></h2>
-      <section class="content" id="content">
+      <section class="content" id="content" role="tabpanel">
         <div class="muted center">טוען…</div>
       </section>
     </div>
@@ -125,7 +125,7 @@
           </div>
           <div class="settings-row toggle-row">
             <div class="settings-row-text"><div class="settings-row-title">מתפלל/ת במניין</div></div>
-            <button class="switch" id="set-minyan" role="switch" aria-label="מניין"></button>
+            <button class="switch" id="set-minyan" type="button" role="switch" aria-checked="false" aria-label="מניין"></button>
           </div>
         </div>
       </section>
@@ -153,7 +153,7 @@
               <div class="settings-row-title">פסוקי דזמרא עם טעמי המקרא</div>
               <div class="settings-row-subtitle" id="set-teamim-note">הפסוקים נלקחים מספריית אוצריא · שחרית של ימי חול, נוסח אשכנז בלבד</div>
             </div>
-            <button class="switch" id="set-teamim" role="switch" aria-label="פסוקי דזמרא עם טעמי המקרא"></button>
+            <button class="switch" id="set-teamim" type="button" role="switch" aria-checked="false" aria-label="פסוקי דזמרא עם טעמי המקרא"></button>
           </div>
         </div>
       </section>

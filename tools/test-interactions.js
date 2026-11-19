@@ -173,6 +173,46 @@ setTimeout(async function () {
   const zc = zpanel.querySelector('[data-close]'); zc.onclick.call(zc);
   check('close button restores focus to the opener', doc.activeElement === doc.getElementById('btn-zmanim'));
 
+  // Switch + tab semantics.
+  Object.defineProperty(doc.getElementById('reader-scroll'), 'scrollTop', { value: 0, writable: true, configurable: true });   // the scroll test above froze it
+  const sw = doc.getElementById('set-minyan');
+  check('switch: role=switch with aria-checked in sync with the state', sw.getAttribute('role') === 'switch' &&
+    sw.getAttribute('aria-checked') === String(win.SiduronApp.state.withMinyan));
+  const wasMinyan = win.SiduronApp.state.withMinyan;
+  sw.onclick.call(sw);
+  check('switch: click flips aria-checked', sw.getAttribute('aria-checked') === String(!wasMinyan) && sw.classList.contains('on') === !wasMinyan);
+  sw.onclick.call(sw);
+  check('switch: aria-checked back after a second click', sw.getAttribute('aria-checked') === String(wasMinyan));
+  check('every role=switch in the page carries aria-checked', Array.from(doc.querySelectorAll('[role="switch"]')).every(e => /^(true|false)$/.test(e.getAttribute('aria-checked'))));
+  const tabsEl = doc.getElementById('tabs');
+  const tabBtns = Array.from(tabsEl.querySelectorAll('button'));
+  check('tabs: container is a tablist, buttons are tabs', tabsEl.getAttribute('role') === 'tablist' && tabBtns.length >= 4 && tabBtns.every(b => b.getAttribute('role') === 'tab'));
+  check('tabs: exactly one aria-selected, matching .active and the service',
+    tabBtns.filter(b => b.getAttribute('aria-selected') === 'true').length === 1 &&
+    tabBtns.every(b => (b.getAttribute('aria-selected') === 'true') === b.classList.contains('active')) &&
+    tabsEl.querySelector('.active').id === 'tab-' + win.SiduronApp.state.service);
+  check('tabs: roving tabindex (only the selected tab is in the tab order)', tabBtns.filter(b => b.tabIndex === 0).length === 1 && tabsEl.querySelector('.active').tabIndex === 0);
+  check('tabs: the content area is the tabpanel labelled by the selected tab', doc.getElementById('content').getAttribute('role') === 'tabpanel' &&
+    doc.getElementById('content').getAttribute('aria-labelledby') === 'tab-' + win.SiduronApp.state.service);
+  check('mini tabs: also a tablist with aria-selected', doc.getElementById('mini-tabs').getAttribute('role') === 'tablist' &&
+    doc.querySelectorAll('#mini-tabs [role="tab"][aria-selected="true"]').length === 1);
+  {
+    const before = win.SiduronApp.state.service;
+    const act = doc.querySelector('#tabs .active'); act.focus();
+    // RTL: ArrowLeft moves to the next tab (visually leftwards).
+    act.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true, cancelable: true }));
+    check('tabs: ArrowLeft (RTL) selects the next tab and keeps focus on the strip', win.SiduronApp.state.service !== before &&
+      doc.activeElement === doc.querySelector('#tabs .active') && doc.activeElement.getAttribute('aria-selected') === 'true');
+    doc.activeElement.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Home', bubbles: true, cancelable: true }));
+    check('tabs: Home selects the first tab', win.SiduronApp.state.service === 'shacharit' && doc.activeElement.id === 'tab-shacharit');
+    doc.activeElement.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true }));
+    check('tabs: ArrowRight (RTL) wraps to the previous = last tab', win.SiduronApp.state.service === 'extras');
+    doc.getElementById('tab-shacharit').click();
+    doc.getElementById('btn-settings').focus();
+  }
+  const cssAll = fs.readFileSync(path.join(ROOT, 'css/style.css'), 'utf8');
+  check('mini-tab .active is not colour-only (font-weight 700)', /\.mini-tab\.active\s*\{[^}]*font-weight:\s*700/.test(cssAll));
+
   // Fixed top bar with the plugin name (DESIGN_GUIDE: Top Bar).
   const topbar = doc.querySelector('header.topbar');
   check('top bar: header.topbar with the plugin name in <h1>', !!topbar && !!topbar.querySelector('h1') && topbar.querySelector('h1').textContent === 'סידורון');

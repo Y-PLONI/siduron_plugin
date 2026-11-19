@@ -130,13 +130,14 @@ body { overflow: hidden; -webkit-user-select: none; user-select: none; }
 }
 @media (hover: hover) { .mini-tab:hover { background-color: var(--state-hover); } }
 .mini-tab:active { background-color: var(--state-pressed); }
-.mini-tab.active { background: var(--color-secondary-container); color: var(--color-on-secondary-container); }
+.mini-tab.active { background: var(--color-secondary-container); color: var(--color-on-secondary-container); font-weight: 700; }   /* weight too: colour alone must not carry the state */
 /* Narrow screens: the active mini-tab already names the prayer. */
 @media (max-width: 600px) { .scrolled .hdr-svc { display: none; } .mini-tab { padding: 8px; } }
 
 /* Collapse the badges + tabs on scroll to give the text more height. */
-.hdr-badges, .tabs { transition: max-height .2s ease, opacity .15s ease, margin .2s ease; overflow: hidden; max-height: 60px; }
-.scrolled .hdr-badges, .scrolled .tabs { max-height: 0; opacity: 0; margin-top: 0; margin-bottom: 0; pointer-events: none; }
+.hdr-badges, .tabs { transition: max-height .2s ease, opacity .15s ease, margin .2s ease, visibility 0s; overflow: hidden; max-height: 60px; }
+.scrolled .hdr-badges, .scrolled .tabs { max-height: 0; opacity: 0; margin-top: 0; margin-bottom: 0; pointer-events: none; visibility: hidden;
+  transition: max-height .2s ease, opacity .15s ease, margin .2s ease, visibility 0s linear .2s; }   /* hidden: also out of the tab order */
 
 .hdr-badges { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
 .badge {
