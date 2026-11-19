@@ -28,6 +28,8 @@
 **עיקרון:** הטקסטים נושאי-flags בלבד; אין לוגיקה הלכתית בנתונים. המנוע (hebcal) מחשב את ה-flags של היום,
 וה-assembler בורר את הקטעים שמתאימים. כך התוסף מציג בכברירת-מחדל את הנוסח הנכון, ומסתיר חלופות נדירות באקורדיון.
 
+**טעינה עצלה:** `data/shabbat-data.js` (שבת + יום טוב: `SIDURON_SHABBAT` ו-`SIDURON_YOMTOV`, 2.5MB) ו-`data/slichot-data.js` (1.3MB) אינם ב-`index.html`; `SiduronServices.loadData(key)` (`js/services.js`) טוען אותם ב-`<script src>` דינמי רק כשתפילה שצריכה אותם נפתחת (`openService` ב-`js/app.js`; כשל בטעינה = מצב שגיאה עם "נסה שוב"). קוד חדש שקורא את המשתנים האלה חייב להמתין ל-`loadData`. הבדיקה: `node tools/test-lazy.js`.
+
 ## בנייה מחדש של הנתונים
 
 הקורפוס מנויד מ-`smart-siddur/assets/prayers` (חייב להיות נוכח באותה תיקייה):
