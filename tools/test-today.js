@@ -240,9 +240,9 @@ setTimeout(async function () {
     // Stored settings: valid values load, anything unexpected keeps the default.
     const stored = obj => (m, p) => (m === 'storage.get' && p && p.key in obj ? obj[p.key] : undefined);
     const dflt = await bootWith(undefined, stored({}));
-    r = await bootWith(undefined, stored({ nusach: 'sfard', gender: 'female', textWidth: '920', fontSize: 30, fontFamily: 'David', withMinyan: false, divineName: 'hashem' }));
+    r = await bootWith(undefined, stored({ nusach: 'sfard', gender: 'female', textWidth: '920', fontSize: 30, fontFamily: 'KeterYG', withMinyan: false, divineName: 'hashem' }));
     check('stored settings load as before', r.nusach === 'sfard' && r.gender === 'female' && r.textWidth === '920' && r.fontSize === 30 &&
-      r.fontFamily === 'David' && r.withMinyan === false && r.divine === 'hashem', JSON.stringify(r));
+      r.fontFamily === 'KeterYG' && r.withMinyan === false && r.divine === 'hashem', JSON.stringify(r));
     r = await bootWith(undefined, stored({ nusach: 'klingon', gender: 7, textWidth: 'huge', fontSize: 'big', fontFamily: "x';}body{", withMinyan: 'yes', divineName: 'nope' }));
     check('unexpected stored values fall back to the defaults',
       r.nusach === dflt.nusach && r.gender === dflt.gender && r.textWidth === dflt.textWidth && r.fontSize === dflt.fontSize &&

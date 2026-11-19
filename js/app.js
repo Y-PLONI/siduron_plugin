@@ -26,6 +26,7 @@
     fontFamily: '',             // '' = follow Otzaria's font; else a specific family
     textWidth: '760',           // content max-width in px, or 'full'
     themeFont: '',              // Otzaria's typography.fontFamily (captured from theme)
+    themeFontSize: 0,           // Otzaria's typography.fontSize — seeds the size on first run only
     platform: '',               // host OS (from plugin.boot): windows|linux|macos|android|ios
     permissions: null,          // granted permissions (from plugin.boot), or null when unknown
     service: null,              // current service id
@@ -248,6 +249,7 @@
       else if (typeof tp.uiFontFamily === 'string' && FONT_NAME_RE.test(tp.uiFontFamily)) {
         r.style.setProperty('--font-ui', "'" + tp.uiFontFamily + "', " + UI_FONT_FALLBACK);
       }
+      if (numIn(tp.fontSize, 8, 72)) STATE.themeFontSize = Math.round(tp.fontSize);
       if (numIn(tp.lineHeight, 1, 3)) r.style.setProperty('--line-height', String(tp.lineHeight));
       // Remember Otzaria's chosen font so "default" follows the rest of the app.
       if (typeof tp.fontFamily === 'string' && FONT_NAME_RE.test(tp.fontFamily)) { STATE.themeFont = tp.fontFamily; applyFont(); }
@@ -1020,9 +1022,7 @@
     buildSegment('set-purim', [['fourteenth', 'י״ד'], ['fifteenth', 'ט״ו'], ['both', 'שניהם']], STATE.purimDate,
       function (v) { STATE.purimDate = v; storageSet('purimDate', v); buildSettings(); rerender(); });
     // Font family (first = default: follow Otzaria). Dropdown — long labels.
-    buildSelect('set-font',
-      [['', 'ברירת מחדל'], ['FrankRuhlCLM', 'פרנק רוהל'], ['David', 'דוד'], ['TaameyFrankCLM', 'טעמי פרנק'], ['Shofar', 'שופר']],
-      STATE.fontFamily,
+    buildSelect('set-font', FONT_CHOICES, STATE.fontFamily,
       function (v) { STATE.fontFamily = v; storageSet('fontFamily', v); applyFont(); });
     // Text width.
     buildSegment('set-width', [['600', 'צר'], ['760', 'בינוני'], ['920', 'רחב'], ['full', 'מלא']], STATE.textWidth,
@@ -1105,7 +1105,7 @@
   }
 
   /* ────────────── Font size ────────────── */
-  var FS_MIN = 16, FS_MAX = 40;
+  var FS_MIN = 16, FS_MAX = 36;      // the SDK's usual reader range (DESIGN_GUIDE)
   function applyFontSize(px) {
     px = Math.max(FS_MIN, Math.min(FS_MAX, parseInt(px, 10) || 22));
     STATE.fontSize = px;
@@ -1117,6 +1117,10 @@
   /* ────────────── Font family ────────────── */
   // Built-in serif fallbacks appended so the prayer text always renders nicely.
   var FONT_NAME_RE = /^[A-Za-z0-9 _-]{1,64}$/;
+  // Reading fonts offered in settings: only families Otzaria bundles and registers as
+  // @font-face in every plugin WebView (DESIGN_GUIDE), picked for prayer text.
+  var FONT_CHOICES = [['', 'ברירת מחדל'], ['FrankRuhlCLM', 'פרנק רוהל'], ['TaameyDavidCLM', 'טעמי דוד'],
+    ['KeterYG', 'כתר'], ['NotoSerifHebrew', 'נוטו סריף עברית'], ['Shofar', 'שופר'], ['TaameyAshkenaz', 'טעמי אשכנז']];
   var FONT_FALLBACK = "'David', 'Noto Serif Hebrew', serif";
   function applyFont() {
     var fam = STATE.fontFamily || STATE.themeFont || 'FrankRuhlCLM';
@@ -1321,7 +1325,11 @@
     divineName: function (v) { return isDivineName(v) ? v : undefined; },
     fontSize: function (v) { return isFinite(parseInt(v, 10)) ? v : undefined; },   // clamped by applyFontSize
     // Goes into a CSS custom property → plain family-name characters only.
-    fontFamily: function (v) { return typeof v === 'string' && /^[A-Za-z0-9 _-]{0,64}$/.test(v) ? v : undefined; },
+    // A family no longer offered ('David', 'TaameyFrankCLM', …) migrates to the default ('').
+    fontFamily: function (v) {
+      if (typeof v !== 'string' || !/^[A-Za-z0-9 _-]{0,64}$/.test(v)) return undefined;
+      return FONT_CHOICES.some(function (c) { return c[0] === v; }) ? v : '';
+    },
     textWidth: function (v) { v = String(v); return ['600', '760', '920', 'full'].indexOf(v) >= 0 ? v : undefined; },
     service: function (v) { return typeof v === 'string' && serviceById(v) ? v : undefined; },
   };
@@ -1340,6 +1348,13 @@
       var v = STORED_SETTINGS[k](values[i]);
       if (v !== undefined) STATE[k] = v;
     });
+    // Migrated font family: write the default back so the stored value stays valid.
+    var fi = keys.indexOf('fontFamily');
+    if (typeof values[fi] === 'string' && values[fi] !== '' && STATE.fontFamily === '') storageSet('fontFamily', '');
+    // First run only (no stored size): start from the size chosen in Otzaria.
+    if (STATE.themeFontSize && STORED_SETTINGS.fontSize(values[keys.indexOf('fontSize')]) === undefined) {
+      STATE.fontSize = STATE.themeFontSize;
+    }
     STATE.teamim = STATE.teamim === true;
     if (window.SiduronTeamim) window.SiduronTeamim.setEnabled(STATE.teamim);
     if (!isDivineName(STATE.divineName)) STATE.divineName = null;

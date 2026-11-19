@@ -107,10 +107,10 @@ setTimeout(async function () {
   win.SiduronApp.setDate('2026-06-18');
   click('btn-settings');
   const fontSel = doc.getElementById('set-font');
-  check('font picker present', !!fontSel && fontSel.tagName === 'SELECT' && fontSel.options.length === 5);
+  check('font picker present', !!fontSel && fontSel.tagName === 'SELECT' && fontSel.options.length === 7);
   if (fontSel) {
-    fontSel.value = 'David'; fontSel.onchange.call(fontSel);
-    check('font → David applied', /David/.test(doc.documentElement.style.getPropertyValue('--font-main')) && win.SiduronApp.state.fontFamily === 'David');
+    fontSel.value = 'KeterYG'; fontSel.onchange.call(fontSel);
+    check('font → KeterYG applied', /KeterYG/.test(doc.documentElement.style.getPropertyValue('--font-main')) && win.SiduronApp.state.fontFamily === 'KeterYG');
     fontSel.value = ''; fontSel.onchange.call(fontSel);
     check('font → default reverts', win.SiduronApp.state.fontFamily === '');
   }
