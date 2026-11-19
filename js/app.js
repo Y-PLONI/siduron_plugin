@@ -984,8 +984,8 @@
     if (!STATE.permissions) return true;
     return STATE.permissions.indexOf('ui.create_shortcut') >= 0;
   }
-  // A fresh grant list (asked on every return to the page, see
-  // updateKivunButton). When library.content.read was given since the last
+  // A fresh grant list (plugin.permissions_changed, or asked again on resume —
+  // see updateKivunButton). When library.content.read was given since the last
   // list, the te'amim books that failed on it are tried again — no restart.
   function setGrantedPermissions(granted) {
     var hadContent = !STATE.permissions || STATE.permissions.indexOf('library.content.read') >= 0;
@@ -1083,11 +1083,36 @@
   // the host can't tell us, and then a click reports the real reason. A missing
   // grant keeps it visible with a hint; the grant list is asked fresh each time,
   // since plugin.boot's copy goes stale when the user toggles it (no reload).
-  // There is no install/uninstall event, so this re-runs whenever the page is
-  // shown again; kivunSeq drops answers that arrive after a newer check.
+  // There is no install/uninstall event, so the installed-list check (2 RPCs)
+  // runs on boot and on plugin.resumed only, debounced (scheduleKivunUpdate) —
+  // never on every focus/visibility flip. Permission changes arrive with their
+  // own event (plugin.permissions_changed) carrying the new list, so they need no
+  // RPC at all (applyGrantedPermissions). kivunSeq drops answers that arrive after
+  // a newer check.
   // Nothing runs before boot(): until plugin.boot the SDK rejects every call
   // ("not ready"), which would read as "can't tell" and flash the button in.
-  var kivunSeq = 0, kivunReady = false;
+  var kivunSeq = 0, kivunReady = false, kivunTimer = null;
+  var KIVUN_DEBOUNCE_MS = 500;
+  function scheduleKivunUpdate() {
+    if (kivunTimer !== null) clearTimeout(kivunTimer);
+    kivunTimer = setTimeout(function () { kivunTimer = null; updateKivunButton(); }, KIVUN_DEBOUNCE_MS);
+  }
+  // The button's tooltip names the missing "פתיחת תוסף אחר" grant.
+  function setKivunLabel(granted) {
+    var btn = document.getElementById('btn-kivun');
+    if (!btn) return;
+    var label = !Array.isArray(granted) || granted.indexOf('plugin.open_other') >= 0
+      ? KIVUN_LABEL
+      : KIVUN_LABEL + ' — נדרשת הרשאה: "פתיחת תוסף אחר"';
+    btn.title = label;
+    btn.setAttribute('aria-label', label);
+  }
+  // A new grant list (plugin.permissions_changed, or a fresh app.getGrantedPermissions).
+  function applyGrantedPermissions(granted) {
+    if (!Array.isArray(granted)) return;
+    setGrantedPermissions(granted);   // keep the shortcut/te'amim hints fresh too
+    setKivunLabel(granted);
+  }
   async function updateKivunButton() {
     var btn = document.getElementById('btn-kivun');
     if (!btn || !kivunReady || !hasOtzaria()) return;
@@ -1101,11 +1126,7 @@
       (list.length === 0 || list.some(function (p) { return p && typeof p.pluginId === 'string'; }));
     btn.hidden = known && !list.some(function (p) { return p && p.pluginId === KIVUN_ID; });
     if (Array.isArray(granted)) setGrantedPermissions(granted);   // keep the shortcut/te'amim hints fresh too
-    var label = !Array.isArray(granted) || granted.indexOf('plugin.open_other') >= 0
-      ? KIVUN_LABEL
-      : KIVUN_LABEL + ' — נדרשת הרשאה: "פתיחת תוסף אחר"';
-    btn.title = label;
-    btn.setAttribute('aria-label', label);
+    setKivunLabel(granted);
   }
 
   /* ────────────── Panels ────────────── */
@@ -1156,8 +1177,6 @@
   /* ────────────── Boot ────────────── */
   function wireUi() {
     var kivunBtn = document.getElementById('btn-kivun'); if (kivunBtn) kivunBtn.onclick = openKivunTefila;
-    document.addEventListener('visibilitychange', function () { if (!document.hidden) updateKivunButton(); });
-    window.addEventListener('focus', updateKivunButton);
     document.getElementById('btn-zmanim').onclick = function () { togglePanel('panel-zmanim'); };
     document.getElementById('btn-nav').onclick = function () { renderNavList(); togglePanel('panel-nav'); };
     document.getElementById('btn-settings').onclick = function () { buildSettings(); togglePanel('panel-settings'); };
@@ -1261,7 +1280,13 @@
     // The plugin follows TODAY, not Otzaria's calendar selection, so
     // calendar.date_changed is deliberately not handled.
     window.Otzaria.on('plugin.suspended', onSuspended);
-    window.Otzaria.on('plugin.resumed', onResumed);
+    window.Otzaria.on('plugin.resumed', function () { onResumed(); if (kivunReady) scheduleKivunUpdate(); });
+    // Needs `events.subscribe:plugin.permissions_changed` in the manifest; without
+    // it the host never delivers the event and the grant list is simply refreshed
+    // by the plugin.resumed check above instead.
+    window.Otzaria.on('plugin.permissions_changed', function (e) {
+      if (e && Array.isArray(e.permissions)) applyGrantedPermissions(e.permissions);
+    });
     window.Otzaria.on('settings.changed', function (e) {
       // The selected city lives in the calendar state; changing it re-derives
       // our location + ארץ-ישראל and can flip flags (tefillin, mussaf, …),

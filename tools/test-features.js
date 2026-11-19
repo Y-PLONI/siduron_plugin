@@ -470,17 +470,18 @@ setTimeout(async function () {
   check('a fresh grant list refreshes STATE.permissions (shortcut hint too)',
     win.SiduronApp.state.permissions.indexOf('plugin.open_other') >= 0);
 
-  // Installed after boot: the page becoming visible again re-checks.
   host = { list: [], granted: ALL };
   await I.updateKivunButton(); await tick();
   check('hidden again after uninstall', kBtn.hidden === true);
+  // focus / visibilitychange no longer drive the check (plugin.resumed does — see
+  // the booted-page section below): no RPC storm on every window focus.
   host = { list: [KIVUN], granted: ALL };
+  kCalls.length = 0;
   Object.defineProperty(doc, 'hidden', { value: false, configurable: true });   // jsdom reports hidden
-  doc.dispatchEvent(new win.Event('visibilitychange')); await tick();
-  check('visibilitychange re-checks (install while the page was open)', kBtn.hidden === false);
-  host = { list: [], granted: ALL };
-  win.dispatchEvent(new win.Event('focus')); await tick();
-  check('focus re-checks too', kBtn.hidden === true);
+  doc.dispatchEvent(new win.Event('visibilitychange'));
+  win.dispatchEvent(new win.Event('focus')); await new Promise(r => setTimeout(r, 650));
+  check('focus / visibilitychange make no kivun host calls',
+    !kCalls.some(c => c[0] === 'plugin.listInstalled' || c[0] === 'app.getGrantedPermissions'), kCalls.map(c => c[0]).join(','));
 
   // Out-of-order answers: an older, slower check must not overwrite a newer one.
   let releaseSlow;
@@ -547,6 +548,7 @@ setTimeout(async function () {
       { runScripts: 'dangerously', url: 'file://' + ROOT + '/index.html' });
     const w2 = dom2.window, d2 = w2.document;
     let booted = false, bootHandler = null;
+    const hs2 = {};
     const c2 = [];
     w2.Otzaria = {
       call: (m, p) => {
@@ -556,7 +558,7 @@ setTimeout(async function () {
         if (m === 'app.getGrantedPermissions') return Promise.resolve({ success: true, data: { permissions: ALL } });
         return Promise.resolve({ success: true, data: null });
       },
-      on: (topic, fn) => { if (topic === 'plugin.boot') bootHandler = fn; },
+      on: (topic, fn) => { hs2[topic] = fn; if (topic === 'plugin.boot') bootHandler = fn; },
       off() {},
     };
     ['vendor/hebcal.js', 'data/siddur-data.js', 'data/services-data.js', 'data/shabbat-data.js', 'data/slichot-data.js',
@@ -576,6 +578,27 @@ setTimeout(async function () {
     if (bootHandler) bootHandler({ permissions: ALL, app: { platform: 'windows' } });
     await new Promise(r => setTimeout(r, 200));
     check('after plugin.boot: installed plugin → button shown', b2.hidden === false);
+
+    // Re-checks come from plugin.resumed (debounced), not from focus.
+    check('the page subscribes to plugin.resumed and plugin.permissions_changed',
+      typeof hs2['plugin.resumed'] === 'function' && typeof hs2['plugin.permissions_changed'] === 'function');
+    c2.length = 0;
+    w2.dispatchEvent(new w2.Event('focus'));
+    d2.dispatchEvent(new w2.Event('visibilitychange'));
+    await new Promise(r => setTimeout(r, 650));
+    check('hosted: focus / visibilitychange make no host calls', c2.indexOf('plugin.listInstalled') < 0, c2.join(','));
+    hs2['plugin.resumed'](); hs2['plugin.resumed'](); hs2['plugin.resumed']();
+    await new Promise(r => setTimeout(r, 100));
+    check('plugin.resumed is debounced (nothing yet)', c2.indexOf('plugin.listInstalled') < 0, c2.join(','));
+    await new Promise(r => setTimeout(r, 600));
+    check('a burst of plugin.resumed → one installed-list check',
+      c2.filter(m => m === 'plugin.listInstalled').length === 1, c2.join(','));
+    c2.length = 0;
+    hs2['plugin.permissions_changed']({ permissions: ['app.info.read'] });
+    check('plugin.permissions_changed updates the tooltip without any RPC',
+      /פתיחת תוסף אחר/.test(b2.title) && c2.length === 0, b2.title + ' | ' + c2.join(','));
+    hs2['plugin.permissions_changed']({ permissions: ALL });
+    check('…and back to the plain label when granted', b2.title === 'כיוון תפילה', b2.title);
     w2.close();
   }
 
