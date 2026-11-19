@@ -78,14 +78,27 @@ body { overflow: hidden; -webkit-user-select: none; user-select: none; }
 
 .app { display: flex; flex-direction: column; height: 100%; }
 
-/* ── Header ── */
-.header {
-  background: var(--color-surface-container);
-  border-bottom: 1px solid var(--color-outline-variant);
-  padding: 12px 16px 0;
+/* ── Top bar: fixed plugin title + tools (DESIGN_GUIDE "Top Bar"; px sizes are the documented exception) ── */
+.topbar {
+  display: flex; align-items: center; gap: 10px;
+  height: var(--top-bar-height, 56px); padding: 0 16px;
+  background: var(--surface-top-bar);
   flex: 0 0 auto;
 }
-.header-tools { display: flex; gap: 4px; margin-inline-start: auto; }
+.topbar h1 {
+  margin: 0; font-size: 16px; font-weight: 600; white-space: nowrap;
+  color: var(--color-on-surface); font-family: var(--font-ui);
+}
+@media (max-width: 600px) { .topbar { height: min(var(--top-bar-height, 44px), 44px); padding: 0 8px 0 12px; } }
+
+/* ── Header: date / season / badges / prayer tabs, in a second area under the bar ── */
+.header {
+  background: var(--surface-top-bar);
+  border-bottom: 1px solid var(--color-outline-variant);
+  padding: 4px 16px 0;
+  flex: 0 0 auto;
+}
+.header-tools { display: flex; gap: 4px; margin-inline-start: auto; flex: none; }
 .tool-btn {
   width: 40px; height: 40px; border: none; border-radius: 50%;
   background: transparent; color: var(--color-on-surface-variant);
@@ -97,11 +110,10 @@ body { overflow: hidden; -webkit-user-select: none; user-select: none; }
 @media (hover: hover) { .tool-btn:hover { background-color: var(--state-hover); color: var(--color-on-surface); } }
 .tool-btn:active { background-color: var(--state-pressed); color: var(--color-on-surface); }
 
-.header-date { display: flex; align-items: center; gap: 12px; margin: 0 0 2px; min-width: 0; }
-.header-tools { flex: none; }
+.header-date { display: flex; align-items: center; gap: 12px; margin: 0 0 2px; min-width: 0; min-height: 40px; }   /* fixed row height: collapsing on scroll must not resize the header */
 .hdr-date { font-size: 1rem; font-weight: 600; }
 .hdr-season { font-size: .875rem; color: var(--color-on-surface-variant); }
-/* Narrow widths: the date and season truncate instead of pushing the tool buttons out. */
+/* Narrow widths: the date and season truncate instead of overflowing the row. */
 .hdr-date, .hdr-season { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* Compact prayer title — only shown once the reader is scrolled. */
 .hdr-svc { font-size: 1rem; font-weight: 700; color: var(--color-primary); display: none; }
@@ -482,6 +494,7 @@ button:disabled, select:disabled, input:disabled { opacity: .38; cursor: default
   .mini-tab, .tab, .badge-btn, .extras-back, .set-action, summary,
   .nav-item { display: inline-flex; align-items: center; }
   .nav-item { display: flex; }
+  .header-date { min-height: 48px; }
   .badge-btn, .set-action, .extras-back { justify-content: center; }
   .tab { justify-content: center; }
   .s-optional > summary, .s-group > summary { display: flex; }

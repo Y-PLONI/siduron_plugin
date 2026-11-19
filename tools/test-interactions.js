@@ -145,6 +145,14 @@ setTimeout(async function () {
     check('success toast on created', sdkCalls.some(c => c[0] === 'ui.showSuccess'));
   }
 
+  // Fixed top bar with the plugin name (DESIGN_GUIDE: Top Bar).
+  const topbar = doc.querySelector('header.topbar');
+  check('top bar: header.topbar with the plugin name in <h1>', !!topbar && !!topbar.querySelector('h1') && topbar.querySelector('h1').textContent === 'סידורון');
+  check('top bar: tool buttons live in the bar', !!topbar && ['btn-nav', 'btn-zmanim', 'btn-settings'].every(id => !!topbar.querySelector('#' + id)));
+  check('top bar: outside the scrolling reader', !doc.getElementById('reader-scroll').contains(topbar));
+  const css = fs.readFileSync(path.join(ROOT, 'css/style.css'), 'utf8');
+  check('top bar: CSS uses the theme tokens, fixed height', /\.topbar\s*\{[^}]*var\(--top-bar-height[^}]*var\(--surface-top-bar\)[^}]*flex:\s*0 0 auto/.test(css));
+
   check('no runtime errors', errors.length === 0);
   console.log(`\n=== INTERACTIONS: ${fail === 0 ? 'PASS' : 'FAIL'} (${pass} passed, ${fail} failed) ===`);
   process.exit(fail === 0 ? 0 : 1);
