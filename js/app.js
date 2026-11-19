@@ -989,6 +989,7 @@
     // Divine-name display (ה׳ / יְיָ / יְדֹוָד / as written).
     buildSegment('set-divine', DIVINE_NAMES, STATE.divineName, function (v) {
       STATE.divineName = v; storageSet('divineName', v);
+      followHostDivineName = false;      // an explicit choice stops following Otzaria's setting
       buildSettings();
       if (STATE.service) openService(STATE.service);
     });
@@ -1221,6 +1222,9 @@
     // 'isInIsrael' is intentionally absent — it's derived from Otzaria's
     // selected city (see refreshLocation), not stored as a manual preference.
     var keys = ['nusach', 'gender', 'withMinyan', 'teamim', 'purimDate', 'divineName', 'fontSize', 'fontFamily', 'textWidth', 'service'];
+    // STATE.divineName starts as 'yy', which would pass the validity check below even
+    // when nothing was ever stored — clear it so "never chosen" is told apart.
+    STATE.divineName = null;
     for (var i = 0; i < keys.length; i++) {
       var k = keys[i]; var v = await storageGet(k);
       if (v == null) continue;
@@ -1232,16 +1236,44 @@
     if (!isDivineName(STATE.divineName)) STATE.divineName = null;
     if (!STATE.divineName) {
       // No style stored yet. Honour the old boolean setting (censorNames) if it
-      // exists, otherwise follow Otzaria's own "הצגת שם הקודש" preference; the
+      // exists, otherwise follow Otzaria's own "הצגת שם הקודש" preference
+      // (app.getDivineNamesDisplay, falling back to the legacy settings key); the
       // default style is two yods, as printed in siddurim.
       var legacy = await storageGet('censorNames');
       if (legacy === false) STATE.divineName = 'source';
       else if (legacy === true) STATE.divineName = 'yy';
       else {
-        var hostReplaces = await call('settings.get', { key: 'key-replace-holy-names' });
-        STATE.divineName = hostReplaces === false ? 'source' : 'yy';
+        followHostDivineName = true;       // until the user picks a style of their own
+        STATE.divineName = await hostDivineNameStyle();
       }
     }
+  }
+  // Otzaria's `holyName` display choice (app.getDivineNamesDisplay, 0.9.98.1) →
+  // the plugin's style. The plugin offers four styles, so most map one to one;
+  // 'kufKuf' (יקוק) has no counterpart here and maps to the default two yods.
+  var HOST_HOLY_NAME_STYLE = {
+    asIs: 'source', hehApostrophe: 'hashem', doubleYod: 'yy', daletDalet: 'yedovid', kufKuf: 'yy',
+  };
+  var followHostDivineName = false;
+  async function hostDivineNameStyle() {
+    try {
+      var d = await call('app.getDivineNamesDisplay');
+      var style = d && typeof d.holyName === 'string' && HOST_HOLY_NAME_STYLE[d.holyName];
+      if (style) return style;
+    } catch (e) { /* fall through to the legacy key */ }
+    // Older host / unexpected answer: the old boolean preference.
+    var hostReplaces = await call('settings.get', { key: 'key-replace-holy-names' });
+    return hostReplaces === false ? 'source' : 'yy';
+  }
+  // Otzaria's text-display policy changed (settings.changed 'key-text-display-policy'):
+  // a plugin style the user never chose follows it.
+  async function onHostDivineNameChanged() {
+    if (!followHostDivineName) return;
+    var style = await hostDivineNameStyle();
+    if (!followHostDivineName || style === STATE.divineName) return;
+    STATE.divineName = style;
+    buildSettings();
+    if (STATE.service) openService(STATE.service, true);
   }
   function isDivineName(v) {
     for (var i = 0; i < DIVINE_NAMES.length; i++) if (DIVINE_NAMES[i][0] === v) return true;
@@ -1372,6 +1404,7 @@
       // our location + ארץ-ישראל and can flip flags (tefillin, mussaf, …),
       // so recompute everything just like a date change.
       if (e && e.key === 'key-selected-city') refreshAndRerender();
+      if (e && e.key === 'key-text-display-policy') onHostDivineNameChanged();
     });
   } else {
     // Standalone (dev / browser preview) — boot when the DOM is ready.

@@ -187,13 +187,17 @@ setTimeout(async function () {
 
     // A fresh page booted by the host with payload.restore.
     const today = (() => { const d = new Date(); const p2 = n => (n < 10 ? '0' : '') + n; return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()); })();
-    async function bootWith(restore) {
+    async function bootWith(restore, hostData, keepOpen) {
       const d2 = new JSDOM(fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8'),
         { runScripts: 'dangerously', url: 'file://' + ROOT + '/index.html' });
       const w2 = d2.window, doc2 = w2.document, h2 = {}, errs = [];
       w2.addEventListener('error', e => errs.push(String(e.message)));
       w2.Otzaria = {
-        call: () => Promise.resolve({ success: true, data: null }),
+        call: (m, p) => {
+          const r = hostData && hostData(m, p);
+          return r instanceof Error ? Promise.resolve({ success: false, error: { code: 'error.unknown_method', message: m } })
+            : Promise.resolve({ success: true, data: r === undefined ? null : r });
+        },
         on: (ev, fn) => { h2[ev] = fn; }, off() {},
       };
       ['vendor/hebcal.js', 'data/siddur-data.js', 'data/services-data.js', 'data/shabbat-data.js', 'data/slichot-data.js',
@@ -207,8 +211,9 @@ setTimeout(async function () {
       await wait(250);
       const st = w2.SiduronApp.state;
       const ex = w2.SiduronExtras && w2.SiduronExtras.list()[0];
-      const out = { service: st.service, extra: st.extra, errs: errs.length, firstExtra: ex && ex.id };
-      w2.close();
+      const out = { divine: st.divineName, service: st.service, extra: st.extra, errs: errs.length, firstExtra: ex && ex.id };
+      Object.defineProperty(out, 'h2', { value: h2 }); Object.defineProperty(out, 'win2', { value: w2 });
+      if (!keepOpen) w2.close();
       return out;
     }
     const base = await bootWith(undefined);
@@ -230,6 +235,30 @@ setTimeout(async function () {
       r = await bootWith(restore);
       check('restore: ' + label + ' → normal open', r.service === base.service && r.errs === 0, JSON.stringify(r));
     }
+
+    // Divine-name default follows Otzaria's holyName display choice.
+    const holy = v => (m => m === 'app.getDivineNamesDisplay' ? { holyName: v, otherNames: 'asIs', filtered: v !== 'asIs' } : undefined);
+    for (const [hostStyle, mine] of [['asIs', 'source'], ['hehApostrophe', 'hashem'], ['doubleYod', 'yy'], ['daletDalet', 'yedovid'], ['kufKuf', 'yy']]) {
+      r = await bootWith(undefined, holy(hostStyle));
+      check('divine name default: host ' + hostStyle + ' → ' + mine, r.divine === mine, r.divine);
+    }
+    r = await bootWith(undefined, m => m === 'app.getDivineNamesDisplay' ? new Error('unknown') : (m === 'settings.get' ? false : undefined));
+    check('divine name default: no getDivineNamesDisplay → legacy key-replace-holy-names=false → source', r.divine === 'source', r.divine);
+    r = await bootWith(undefined, m => m === 'app.getDivineNamesDisplay' ? { holyName: 'weird' } : undefined);
+    check('divine name default: an unknown host style → legacy fallback (yy)', r.divine === 'yy', r.divine);
+    r = await bootWith(undefined, m => m === 'app.getDivineNamesDisplay' ? { holyName: 'asIs' } : (m === 'storage.get' ? undefined : undefined));
+    // A style the user stored wins over the host's.
+    r = await bootWith(undefined, (m, p) => m === 'app.getDivineNamesDisplay' ? { holyName: 'asIs' } : (m === 'storage.get' && p.key === 'divineName' ? 'hashem' : undefined));
+    check('divine name: a stored user style wins over the host setting', r.divine === 'hashem', r.divine);
+    // Live: settings.changed key-text-display-policy updates a style the user never chose.
+    let cur = 'doubleYod';
+    r = await bootWith(undefined, m => m === 'app.getDivineNamesDisplay' ? { holyName: cur } : undefined, true);
+    check('live: starts on the host style', r.divine === 'yy', r.divine);
+    cur = 'daletDalet';
+    r.h2['settings.changed']({ key: 'key-text-display-policy', newValue: 'x' });
+    await wait(80);
+    check('live: key-text-display-policy changes the followed style', r.win2.SiduronApp.state.divineName === 'yedovid', r.win2.SiduronApp.state.divineName);
+    r.win2.close();
   }
 
   console.log('\n══ זמני היום: מזהי זמנים של אוצריא ══');
