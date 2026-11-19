@@ -22,6 +22,8 @@
 
   // V2: מ-V1 נשמרו פסוקים עם שמות הקודש לפי הגדרת אוצריא (בלי rawDivineNames).
   var CACHE_KEY = 'teamimCacheV2';
+  // Keys of earlier cache formats, now orphaned — dropped once on the first load.
+  var LEGACY_CACHE_KEYS = ['teamimCacheV1', 'teamimCache'];
   var CHUNK = 5000;
   var MAX_CHUNKS = 600;              // רשת ביטחון מפני לולאה אינסופית
 
@@ -44,10 +46,22 @@
   async function loadCache() {
     if (cacheLoaded) return false;
     cacheLoaded = true;
+    removeLegacyCaches();                     // not awaited — housekeeping only
     var v = await call('storage.get', { key: CACHE_KEY });
     if (v && typeof v === 'object') cache = v;
     else if (typeof v === 'string') { try { cache = JSON.parse(v) || {}; } catch (e) { cache = {}; } }
     return Object.keys(cache).length > 0;
+  }
+  // Fire-and-forget storage.remove of the orphaned keys; any failure (no such key,
+  // host not ready, an older host) is swallowed — the data is just dead weight.
+  function removeLegacyCaches() {
+    if (!hasOtzaria()) return;
+    LEGACY_CACHE_KEYS.forEach(function (k) {
+      try {
+        var p = global.Otzaria.call('storage.remove', { key: k });
+        if (p && p.then) p.then(null, function () {});
+      } catch (e) { /* ignore */ }
+    });
   }
   function saveCache() {
     if (hasOtzaria()) global.Otzaria.call('storage.set', { key: CACHE_KEY, value: cache });
@@ -107,6 +121,10 @@
   async function readWholeBook(title) {
     var text = '', offset = 0;
     for (var i = 0; i < MAX_CHUNKS; i++) {
+      // `bookId` is the book's title, as the host resolves it. The sturdier
+      // `bookUid` ('id:N' / 'path:…') would have to come from library.listBooks /
+      // library.findBook, which needs the extra `library.books.read` permission —
+      // not requested, to keep this plugin's permission list short.
       var chunk = await call('library.getBookContent', { bookId: title, offset: offset, limit: CHUNK, rawDivineNames: true });
       if (chunk && typeof chunk === 'object') chunk = chunk.content || chunk.text || '';
       if (typeof chunk !== 'string' || !chunk.length) break;
