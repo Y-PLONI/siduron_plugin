@@ -110,7 +110,7 @@ setTimeout(async function () {
   check('font picker present', !!fontSel && fontSel.tagName === 'SELECT' && fontSel.options.length === 5);
   if (fontSel) {
     fontSel.value = 'David'; fontSel.onchange.call(fontSel);
-    check('font → David applied', /David/.test(doc.documentElement.style.getPropertyValue('--prayer-font')) && win.SiduronApp.state.fontFamily === 'David');
+    check('font → David applied', /David/.test(doc.documentElement.style.getPropertyValue('--font-main')) && win.SiduronApp.state.fontFamily === 'David');
     fontSel.value = ''; fontSel.onchange.call(fontSel);
     check('font → default reverts', win.SiduronApp.state.fontFamily === '');
   }

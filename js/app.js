@@ -194,8 +194,8 @@
   // Every value from the host payload goes into a CSS custom property, so each
   // one is validated first: a malformed payload leaves the :root fallback in place.
   var COLOR_RE = /^#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
-  var COLOR_PREFIX = '--c-';
-  // theme.colorScheme roles → --c-<kebab-case>.
+  var COLOR_PREFIX = '--color-';
+  // theme.colorScheme roles → --color-<kebab-case>.
   var COLOR_ROLES = ['primary', 'onPrimary', 'primaryContainer', 'onPrimaryContainer',
     'secondary', 'onSecondary', 'secondaryContainer', 'onSecondaryContainer',
     'tertiary', 'onTertiary', 'tertiaryContainer', 'onTertiaryContainer',
@@ -228,12 +228,12 @@
     var sp = theme.spacing;
     if (sp && typeof sp === 'object') SPACING_KEYS.forEach(function (k) { setPx('--space-' + k, sp[k], 0, 64); });
     if (/^#[0-9a-fA-F]{6}$/.test(String(cs.primary))) {
-      r.style.setProperty('--c-primary-subtle', hexToRgba(cs.primary, 0.12));
-      r.style.setProperty('--c-primary-border', hexToRgba(cs.primary, 0.22));
+      r.style.setProperty('--color-primary-subtle', hexToRgba(cs.primary, 0.12));
+      r.style.setProperty('--color-primary-border', hexToRgba(cs.primary, 0.22));
     }
     if (/^#[0-9a-fA-F]{6}$/.test(String(cs.onSurface))) {
-      r.style.setProperty('--c-on-surface-subtle', hexToRgba(cs.onSurface, 0.07));
-      r.style.setProperty('--c-on-surface-hover', hexToRgba(cs.onSurface, 0.12));
+      r.style.setProperty('--field-fill', hexToRgba(cs.onSurface, 0.07));
+      r.style.setProperty('--field-fill-hover', hexToRgba(cs.onSurface, 0.12));
     }
     document.body.classList.toggle('dark', theme.mode === 'dark');
     if (theme.typography) {
@@ -1110,7 +1110,7 @@
   var FONT_FALLBACK = "'David', 'Noto Serif Hebrew', serif";
   function applyFont() {
     var fam = STATE.fontFamily || STATE.themeFont || 'FrankRuhlCLM';
-    document.documentElement.style.setProperty('--prayer-font', "'" + fam + "', " + FONT_FALLBACK);
+    document.documentElement.style.setProperty('--font-main', "'" + fam + "', " + FONT_FALLBACK);
   }
 
   /* ────────────── Text width ────────────── */
@@ -1423,10 +1423,10 @@
     if (document.getElementById('dev-bar')) return;
     var bar = document.createElement('div');
     bar.id = 'dev-bar';
-    bar.style.cssText = 'position:fixed;bottom:14px;inset-inline-end:14px;z-index:60;display:flex;gap:6px;align-items:center;background:var(--c-surface-container-highest);padding:6px 10px;border-radius:999px;box-shadow:0 2px 8px rgba(0,0,0,.2);font-family:var(--ui-font);font-size:.8rem;';
+    bar.style.cssText = 'position:fixed;bottom:14px;inset-inline-end:14px;z-index:60;display:flex;gap:6px;align-items:center;background:var(--color-surface-container-highest);padding:6px 10px;border-radius:999px;box-shadow:0 2px 8px rgba(0,0,0,.2);font-family:var(--font-ui);font-size:.8rem;';
     var iso = STATE.date ? STATE.date.toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10);
     bar.innerHTML = '<span style="opacity:.7">תאריך (תצוגה):</span>' +
-      '<input type="date" id="dev-date" value="' + iso + '" style="font-family:inherit;border:1px solid var(--c-outline-variant);border-radius:8px;padding:3px 6px;background:var(--c-surface);color:var(--c-on-surface)">';
+      '<input type="date" id="dev-date" value="' + iso + '" style="font-family:inherit;border:1px solid var(--color-outline-variant);border-radius:8px;padding:3px 6px;background:var(--color-surface);color:var(--color-on-surface)">';
     document.body.appendChild(bar);
     document.getElementById('dev-date').onchange = function () {
       if (this.value) window.SiduronApp.setDate(this.value);
