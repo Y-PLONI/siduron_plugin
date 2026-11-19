@@ -100,6 +100,16 @@ body { overflow: hidden; }
 .badge.b-red    { background: #FBDAD7; color: #8C1D18; }
 .badge.b-purple { background: #ECE0FF; color: #3F2A6B; }
 .badge.b-teal   { background: #CDEFEC; color: #0B4C49; }
+.badge-btn { border: none; font-family: inherit; cursor: pointer; }
+.badge-btn:hover { filter: brightness(.95); }
+.date-field {
+  width: 100%; height: 40px; box-sizing: border-box;
+  border: 1.4px solid transparent; border-radius: 20px;
+  background: var(--c-on-surface-subtle); color: var(--c-on-surface);
+  font-family: inherit; font-size: 1rem; padding-inline: 14px; text-align: start;
+}
+.date-field:hover { background: var(--c-on-surface-hover); }
+.date-field:focus { background: var(--c-on-surface-hover); border-color: var(--c-primary-border); outline: none; }
 .badge.b-ghost  { background: transparent; color: var(--c-on-surface-variant); border: 1px solid var(--c-outline-variant); }
 
 .dark .badge.b-blue   { background: #21304f; color: #BFD4FF; }

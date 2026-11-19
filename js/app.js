@@ -30,10 +30,13 @@
     permissions: null,          // granted permissions (from plugin.boot), or null when unknown
     service: null,              // current service id
     extra: null,                // current extra id (within the תוספות view)
-    date: null,                 // JS Date — the halachic day Otzaria reports
+    date: null,                 // JS Date — the halachic day being shown (today, rolled over at שקיעה, unless customDate)
+    customDate: null,           // 'YYYY-MM-DD' the user picked in the plugin; null = always today. Never persisted.
+    liveCivil: '',              // civil day (toDateString) the "today" state was computed for
+    liveSunset: null,           // today's שקיעה (minutes) used for that computation
     dayFlags: null,
     times: null,                // Otzaria's getDailyTimes for that day
-    dayAdvanced: false,         // host already rolled the day over at שקיעה
+    dayAdvanced: false,         // the day already rolled over at שקיעה (or it is the small hours before עלות השחר)
     maarivDate: null,           // the day whose entering night ערבית belongs to
     maarivFlags: null,
     nav: [],
@@ -333,9 +336,9 @@
   }
 
   /* ────────────── Date + flags ────────────── */
-  // Otzaria's `calendar.getSelectedDate` is the HALACHIC day: its calendar rolls
-  // the date over at שקיעה (the `calendarDayTransition` setting), so from sunset
-  // on Thursday the host already reports Friday. שחרית/מנחה of that day are the
+  // The day shown is the HALACHIC day: it rolls over at שקיעה (refreshDate does
+  // this itself from today's zmanim — Otzaria's calendar selection is ignored), so
+  // from sunset on Thursday the day is already Friday. שחרית/מנחה of that day are the
   // coming morning and afternoon, which is exactly what we want — but ערבית is
   // said at the START of a halachic day, so the night we're standing in belongs
   // to the day the host already advanced to.
@@ -372,6 +375,11 @@
     return nowM >= sunset - 5;
   }
   function nowMinutes(now) { return now.getHours() * 60 + now.getMinutes(); }
+  // At/after שקיעה (same 5-minute tolerance as hostDayAdvanced; 17:00 when the
+  // host gave no times).
+  function pastSunset(now, sunsetMin) {
+    return sunsetMin == null ? nowMinutes(now) >= 17 * 60 : nowMinutes(now) >= sunsetMin - 5;
+  }
   // עלות השחר in minutes: the host's own time when present, else sunrise − 72
   // (the usual 72-minute approximation), else a flat 05:00 so the night/day
   // boundary still exists in a standalone preview without times.
@@ -388,26 +396,85 @@
     return m ? (+m[1] * 60 + +m[2]) : null;
   }
 
+  // The plugin always works on TODAY (the system clock), never on the date that
+  // happens to be selected in Otzaria's calendar. After שקיעה the halachic day is
+  // tomorrow (see maarivDateFor). Another day is only shown when the user picks it
+  // here (STATE.customDate) — and that choice is never saved, so reopening the
+  // plugin always starts on today.
+  function localIso(d) {
+    function p(n) { return (n < 10 ? '0' : '') + n; }
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+  }
+  function noonOf(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12, 0, 0); }
+  function parseIso(iso) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
+    return m ? new Date(+m[1], +m[2] - 1, +m[3], 12, 0, 0) : null;
+  }
+  function timesFor(d) { return call('calendar.getDailyTimes', { date: localIso(d) }); }
+
   async function refreshDate() {
     await refreshLocation();
-    var iso = await call('calendar.getSelectedDate');
-    var d;
-    if (iso) { d = new Date(iso); if (isNaN(d.getTime())) d = new Date(); }
-    else d = new Date();
-    // Normalise to local noon to avoid TZ day-shift in hebcal.
-    STATE.date = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12, 0, 0);
-    STATE.times = await call('calendar.getDailyTimes');
-    setPrayerDays(new Date());
+    var now = new Date();
+    var custom = parseIso(STATE.customDate);
+    if (custom) {
+      STATE.date = custom;
+      STATE.times = await timesFor(custom);
+      STATE.liveCivil = ''; STATE.liveSunset = null;
+    } else {
+      var today = noonOf(now);
+      var t0 = await timesFor(today);
+      STATE.date = today; STATE.times = t0;
+      STATE.liveCivil = now.toDateString();
+      STATE.liveSunset = minutesOfDay(t0 && (t0.shkiah || t0.sunset || t0.seaLevelSunset));
+      // From שקיעה the halachic day is already tomorrow.
+      if (pastSunset(now, STATE.liveSunset)) {
+        var tomorrow = new Date(today.getTime()); tomorrow.setDate(tomorrow.getDate() + 1);
+        var t1 = await timesFor(tomorrow);
+        // Keep the two views consistent: only roll over when the day model agrees
+        // (tomorrow's שקיעה can differ by a minute or two from today's).
+        if (hostDayAdvanced(tomorrow, t1, now)) { STATE.date = tomorrow; STATE.times = t1; }
+      }
+    }
+    setPrayerDays(now);
     renderHeader();
     await renderZmanim();
     return STATE.dayFlags;
+  }
+
+  // Pick (iso 'YYYY-MM-DD') or clear (null/'') a day other than today.
+  async function setCustomDate(iso) {
+    STATE.customDate = parseIso(iso) ? iso : null;
+    await refreshDate();
+    // Back on today → open the prayer that fits the time of day again.
+    if (!STATE.customDate) STATE.service = pickServiceByTime(STATE.times);
+    renderTabs();
+    openService(STATE.service || 'shacharit');
+    buildSettings();
+  }
+
+  // Today moves on by itself: at midnight, at שקיעה (the halachic day becomes
+  // tomorrow) and at עלות השחר (the small hours stop being "the night"). Checked
+  // every minute and whenever the plugin comes back to the foreground.
+  function liveStale(now) {
+    if (STATE.customDate || !STATE.liveCivil || !STATE.date) return false;
+    if (now.toDateString() !== STATE.liveCivil) return true;
+    var showingTomorrow = STATE.date.toDateString() !== now.toDateString();
+    if (pastSunset(now, STATE.liveSunset) !== showingTomorrow) return true;
+    return STATE.dayAdvanced && !showingTomorrow && nowMinutes(now) >= alotMinutes(STATE.times);
+  }
+  var liveBusy = false;
+  function liveTick() {
+    if (liveBusy || !liveStale(new Date())) return;
+    liveBusy = true;
+    refreshAndRerender().then(function () { liveBusy = false; }, function () { liveBusy = false; });
   }
 
   // Recompute the day flags for the header/day services and for ערבית.
   function setPrayerDays(now) {
     var ctx = userContext();
     STATE.dayFlags = window.SiduronCalendar.flagsFor(STATE.date, ctx);
-    STATE.dayAdvanced = hostDayAdvanced(STATE.date, STATE.times, now || new Date());
+    // A day the user picked by hand has no "now": the night is never advanced.
+    STATE.dayAdvanced = STATE.customDate ? false : hostDayAdvanced(STATE.date, STATE.times, now || new Date());
     STATE.maarivDate = maarivDateFor(STATE.date, STATE.dayAdvanced);
     STATE.maarivFlags = STATE.dayAdvanced
       ? STATE.dayFlags
@@ -478,6 +545,17 @@
       html += '<span class="badge b-ghost">' + df.upcomingParshah.he + '</span>';
     }
     bEl.innerHTML = html || '<span class="badge b-ghost">יום חול</span>';
+    // A hand-picked day must never be mistaken for today: say so, one tap returns.
+    if (STATE.customDate) {
+      var back = document.createElement('button');
+      back.type = 'button';
+      back.className = 'badge b-red badge-btn';
+      back.id = 'hdr-custom';
+      back.title = 'חזרה להיום';
+      back.textContent = 'תאריך שנבחר · חזרה להיום ✕';
+      back.onclick = function () { setCustomDate(null); };
+      bEl.insertBefore(back, bEl.firstChild);
+    }
 
     // Tal/Geshem hint.
     var seasonEl = document.getElementById('hdr-season');
@@ -720,6 +798,7 @@
   // says nothing about which prayer they want and the saved choice is kept.
   function isLiveDay(now) {
     now = now || new Date();
+    if (STATE.customDate) return false;
     if (STATE.dayAdvanced) return true;
     return !!STATE.date && now.toDateString() === STATE.date.toDateString();
   }
@@ -769,6 +848,24 @@
     // Text width.
     buildSegment('set-width', [['600', 'צר'], ['760', 'בינוני'], ['920', 'רחב'], ['full', 'מלא']], STATE.textWidth,
       function (v) { STATE.textWidth = v; storageSet('textWidth', v); applyWidth(); buildSettings(); });
+    // Day to pray for: today by default; any other day only on request.
+    var dateIn = document.getElementById('set-date');
+    if (dateIn) {
+      dateIn.value = STATE.customDate || localIso(new Date());
+      dateIn.onchange = function () { if (this.value) setCustomDate(this.value); };
+    }
+    var dateTodayBtn = document.getElementById('set-date-today');
+    if (dateTodayBtn) {
+      dateTodayBtn.hidden = !STATE.customDate;
+      dateTodayBtn.onclick = function () { setCustomDate(null); };
+    }
+    var dateNote = document.getElementById('set-date-note');
+    if (dateNote) {
+      dateNote.textContent = STATE.customDate
+        ? 'מוצג יום אחר מהיום — הבחירה לא נשמרת, ובפתיחה הבאה התוסף חוזר להיום'
+        : 'היום (עובר ליום הבא בשקיעה). לבחירת יום אחר — בחרו תאריך';
+      dateNote.classList.toggle('warn', !!STATE.customDate);
+    }
     // Location (read-only — derived from the city chosen in Otzaria).
     var locEl = document.getElementById('set-location');
     if (locEl) {
@@ -1088,6 +1185,7 @@
     };
   }
 
+  var liveTimer = null;
   async function boot() {
     try {
       kivunReady = true;
@@ -1107,6 +1205,11 @@
       renderTabs();
       buildSettings();
       openService(STATE.service || 'shacharit');
+      if (!liveTimer) {
+        liveTimer = setInterval(liveTick, 60000);
+        document.addEventListener('visibilitychange', function () { if (!document.hidden) liveTick(); });
+        window.addEventListener('focus', liveTick);
+      }
     } catch (e) {
       document.getElementById('content').innerHTML =
         '<div class="muted center">שגיאה בטעינת הסידור: ' + window.SiduronRender.esc(String(e && e.message || e)) + '</div>';
@@ -1128,7 +1231,9 @@
       boot();
     });
     window.Otzaria.on('theme.changed', applyTheme);
-    window.Otzaria.on('calendar.date_changed', refreshAndRerender);
+    // The plugin follows TODAY, not Otzaria's calendar selection, so
+    // calendar.date_changed is deliberately not handled.
+    window.Otzaria.on('plugin.resumed', liveTick);
     window.Otzaria.on('settings.changed', function (e) {
       // The selected city lives in the calendar state; changing it re-derives
       // our location + ארץ-ישראל and can flip flags (tefillin, mussaf, …),
@@ -1163,6 +1268,9 @@
     _internals: {
       maarivDateFor: maarivDateFor,
       hostDayAdvanced: hostDayAdvanced,
+      setCustomDate: setCustomDate,
+      liveStale: liveStale,
+      refreshDate: refreshDate,
       renderDivineName: renderDivineName,
       applyDivineName: applyDivineName,
       divineNames: DIVINE_NAMES,
