@@ -22,7 +22,6 @@
     "ui.create_shortcut",
     "plugin.open_other",
     "events.subscribe:theme.changed",
-    "events.subscribe:calendar.date_changed",
     "events.subscribe:settings.changed"
   ],
   "network": {
