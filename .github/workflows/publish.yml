@@ -10,6 +10,7 @@ on:
     branches: [master]
     paths:
       - 'manifest.json'
+      - '.otzignore'
       - 'index.html'
       - 'css/**'
       - 'data/**'
