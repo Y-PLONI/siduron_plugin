@@ -727,6 +727,7 @@
 
     var contentEl = document.getElementById('content');
     var result;
+    var showTeamimLoading = false;
     try {
       // Main services (שחרית/מנחה/מעריב) for all nuschaot are sourced from the
       // Tfilon corpus on weekdays (js/services.js) and from seforim.db on
@@ -750,11 +751,14 @@
         var TZ = window.SiduronTeamim;
         if (TZ && STATE.teamim && TZ.isActive(STATE.nusach, tfilonSvc)) {
           var failedBefore = TZ.failedBooks().join('|');
-          TZ.prefetch(STATE.nusach, tfilonSvc).then(function (changed) {
+          var teamimPending = TZ.prefetch(STATE.nusach, tfilonSvc);
+          showTeamimLoading = TZ.isLoading(STATE.nusach, tfilonSvc);
+          teamimPending.then(function (changed) {
+            hideTeamimLoading();
             if (changed && STATE.teamim && STATE.service === id) openService(id, true);
             // ההערה בהגדרות מציגה את הספרים שנכשלו — לבנות מחדש רק כשהרשימה השתנתה.
             if (TZ.failedBooks().join('|') !== failedBefore) buildSettings();
-          });
+          }, hideTeamimLoading);
         }
         result = window.SiduronServices.render(STATE.nusach, tfilonSvc, flags);
       } else {
@@ -763,7 +767,9 @@
         result = window.SiduronRender.render(segs);
       }
     } catch (e) {
-      contentEl.innerHTML = '<div class="muted center">שגיאה בהרכבת התפילה: ' + window.SiduronRender.esc(String(e && e.message || e)) + '</div>';
+      // The detail goes to the console; the page only says what failed.
+      console.warn('[siduron] failed to assemble the service:', e);
+      contentEl.innerHTML = '<div class="muted center">לא ניתן היה להציג את התפילה. נסו לבחור שוב או להפעיל מחדש את התוסף.</div>';
       return;
     }
     STATE.nav = result.nav;
@@ -775,7 +781,20 @@
     contentEl.innerHTML = '<div class="prayer' + (keepScroll ? '' : ' fade-in') + '">' + applyDivineName(result.html) + '</div>';
     contentEl.scrollTop = contentTop;
     if (sc) sc.scrollTop = readerTop;
+    // First te'amim load (books are read from Otzaria's library): say so until the
+    // verses arrive and the prayer is re-rendered with them.
+    if (showTeamimLoading) {
+      var ind = document.createElement('div');
+      ind.id = 'teamim-loading';
+      ind.className = 'muted center';
+      ind.textContent = 'טוען טעמים…';
+      contentEl.insertBefore(ind, contentEl.firstChild);
+    }
     renderNavList();
+  }
+  function hideTeamimLoading() {
+    var ind = document.getElementById('teamim-loading');
+    if (ind && ind.parentNode) ind.parentNode.removeChild(ind);
   }
 
   /* ────────────── Extras (תוספות) view ────────────── */
@@ -1079,6 +1098,19 @@
     buildSettings();
     if (STATE.teamim && STATE.service) openService(STATE.service, true);
   }
+  // The SDK error's `category` ('permission', 'not_found', 'unsupported', … — see
+  // the SDK README's error section), or '' for a thrown Error / string / older host
+  // that doesn't send one. The message regexes below stay as the fallback.
+  function errCategory(err) {
+    return err && typeof err === 'object' && typeof err.category === 'string' ? err.category : '';
+  }
+  // The host's own text as a short trailing line (the full text goes to the console):
+  // a wrong guess in the mappers below can then never hide the real cause.
+  function errDetail(msg) {
+    if (!msg) return '';
+    console.warn('[siduron] host error:', msg);
+    return '\n(' + (msg.length > 120 ? msg.slice(0, 117) + '…' : msg) + ')';
+  }
   // Turn the host's RPC error into something a user can act on. The bridge
   // returns codes like `permission_denied`, `error.unsupported: target folder
   // not found` or `error.internal: USERPROFILE not set`; blaming the permission
@@ -1086,26 +1118,21 @@
   // that was already granted while the real cause — no Desktop folder, a
   // OneDrive-redirected desktop, an app too old for the API — stayed hidden.
   function shortcutErrorMessage(err) {
-    var msg = rpcErrorText(err);
-    // The host's original text is always appended as the detail, so a wrong guess
-    // here can never hide the real cause.
-    var detail = msg ? '\n\nפרטי השגיאה מאוצריא: ' + msg : '';
+    var msg = rpcErrorText(err), cat = errCategory(err);
+    var detail = errDetail(msg);
     // Specific causes first: a Desktop-folder failure must not be reported as a
     // permission problem just because the message also mentions the shortcut API.
     if (/target folder not found|folder not found|USERPROFILE|HOME not set|desktop.{0,20}(not found|missing)|PathNotFound|ENOENT|cannot find the path/i.test(msg)) {
-      return 'לא נמצאה תיקיית שולחן העבודה במחשב (לא קשור להרשאות). ' +
-        'לרוב שולחן העבודה מנותב ל-OneDrive או למיקום אחר שאוצריא אינה מוצאת. ' +
-        'צרו תיקיית "Desktop" בתיקיית המשתמש (או המתינו לסנכרון OneDrive) ונסו שוב; ' +
-        'לחלופין צרו קיצור ידנית עם הכתובת otzaria://open/plugin/com.moshenahari.siduron.' + detail;
+      return 'לא נמצאה תיקיית שולחן העבודה (לא קשור להרשאות). ' +
+        'צרו תיקיית "Desktop" בתיקיית המשתמש ונסו שוב, או צרו קיצור ידנית עם הכתובת ' +
+        'otzaria://open/plugin/com.moshenahari.siduron' + detail;
     }
     if (/rate_limited|rate limit/i.test(msg)) return 'יותר מדי בקשות ברצף. המתינו רגע ונסו שוב.' + detail;
-    if (/unknown action|unknown domain|unknown method|not ready|not implemented|method not found/i.test(msg)) {
-      return 'הגרסה של אוצריא המותקנת אצלכם אינה תומכת עדיין ביצירת קיצורי דרך. עדכנו את אוצריא ונסו שוב.' + detail;
+    if (cat === 'unsupported' || /unknown action|unknown domain|unknown method|not ready|not implemented|method not found/i.test(msg)) {
+      return 'הגרסה של אוצריא אצלכם אינה תומכת עדיין ביצירת קיצורי דרך. עדכנו את אוצריא ונסו שוב.' + detail;
     }
-    if (/permission[_ ]denied|not granted|ui\.create_shortcut/i.test(msg)) {
-      return 'אוצריא דיווחה שאין הרשאה ליצירת קיצור דרך. פתחו: הגדרות → כלים → סידורון → ניהול הרשאות, ' +
-        'ואשרו "יצירת קיצור דרך". אם ההרשאה כבר מסומנת — כבו והדליקו אותה ונסו שוב. ' +
-        'אם השגיאה חוזרת למרות ההרשאה, זו תקלה בצד אוצריא ולא בתוסף.' + detail;
+    if (cat === 'permission' || /permission[_ ]denied|not granted|ui\.create_shortcut/i.test(msg)) {
+      return 'אין הרשאה ליצירת קיצור דרך. אשרו "יצירת קיצור דרך" בהגדרות → כלים → סידורון → ניהול הרשאות.' + detail;
     }
     return 'לא ניתן היה ליצור קיצור דרך.' + detail;
   }
@@ -1142,13 +1169,12 @@
   // The host answers `error.not_found` when the plugin isn't installed and
   // `permission_denied` (Permission denied: plugin.open_other) without the grant.
   function kivunErrorMessage(err) {
-    var msg = rpcErrorText(err);
-    if (/not_found/.test(msg)) {
+    var msg = rpcErrorText(err), cat = errCategory(err);
+    if (cat === 'not_found' || /not_found/.test(msg)) {
       return 'תוסף "כיוון תפילה" אינו מותקן. ניתן להתקין אותו מחנות התוספים של אוצריא.';
     }
-    if (/permission_denied|open_other/.test(msg)) {
-      return 'אין הרשאה לפתיחת תוסף אחר. פתחו: הגדרות → כלים → סידורון → ניהול הרשאות, ' +
-        'ואשרו "פתיחת תוסף אחר".';
+    if (cat === 'permission' || /permission_denied|open_other/.test(msg)) {
+      return 'אין הרשאה לפתיחת תוסף אחר. אשרו "פתיחת תוסף אחר" בהגדרות → כלים → סידורון → ניהול הרשאות.';
     }
     return 'לא ניתן היה לפתוח את "כיוון תפילה"' + (msg ? ' (' + msg + ')' : '') + '.';
   }
@@ -1159,7 +1185,7 @@
     if (btn) btn.disabled = false;
     if (!err) return;
     // Uninstalled since the last check — stop offering a button that can't work.
-    if (btn && /not_found/.test(rpcErrorText(err))) btn.hidden = true;
+    if (btn && (errCategory(err) === 'not_found' || /not_found/.test(rpcErrorText(err)))) btn.hidden = true;
     call('ui.showError', { message: kivunErrorMessage(err) });
   }
   // The button starts hidden (index.html), so the many users without the plugin
@@ -1397,8 +1423,9 @@
         window.addEventListener('focus', liveTick);
       }
     } catch (e) {
+      console.warn('[siduron] boot failed:', e);
       document.getElementById('content').innerHTML =
-        '<div class="muted center">שגיאה בטעינת הסידור: ' + window.SiduronRender.esc(String(e && e.message || e)) + '</div>';
+        '<div class="muted center">לא ניתן היה לטעון את הסידור. נסו לפתוח את התוסף מחדש.</div>';
     }
   }
 

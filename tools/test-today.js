@@ -268,6 +268,28 @@ setTimeout(async function () {
     check('a failing storage.set is not an unhandled rejection', unhandled.length === 0, unhandled.join('|'));
     check('a failing storage.set is logged', warns.some(w => /storage\.set\(gender\)/.test(w)), warns.join('|'));
 
+    // "טוען טעמים…": isLoading is true while the first te'amim load is in flight.
+    {
+      const dt = new JSDOM('<!doctype html><body></body>', { runScripts: 'dangerously' });
+      const wt = dt.window;
+      let release;
+      const gate = new Promise(res => { release = res; });
+      wt.Otzaria = {
+        call: (m) => m === 'library.getBookContent' ? gate.then(() => ({ success: true, data: '' })) : Promise.resolve({ success: true, data: null }),
+        on() {}, off() {},
+      };
+      ['data/teamim-map.js', 'js/teamim.js'].forEach(f => wt.eval(fs.readFileSync(path.join(ROOT, f), 'utf8')));
+      const T = wt.SiduronTeamim;
+      check('teamim: not loading while disabled', T.isLoading('ashkenaz', 'shacharit') === false);
+      T.setEnabled(true);
+      const pf = T.prefetch('ashkenaz', 'shacharit');
+      check('teamim: loading while the first prefetch is in flight', T.isLoading('ashkenaz', 'shacharit') === true);
+      check('teamim: a service without a mapping is never "loading"', T.isLoading('sfard', 'shacharit') === false);
+      release(); await pf;
+      check('teamim: not loading once it settled', T.isLoading('ashkenaz', 'shacharit') === false);
+      wt.close();
+    }
+
     // Divine-name default follows Otzaria's holyName display choice.
     const holy = v => (m => m === 'app.getDivineNamesDisplay' ? { holyName: v, otherNames: 'asIs', filtered: v !== 'asIs' } : undefined);
     for (const [hostStyle, mine] of [['asIs', 'source'], ['hehApostrophe', 'hashem'], ['doubleYod', 'yy'], ['daletDalet', 'yedovid'], ['kufKuf', 'yy']]) {

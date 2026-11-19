@@ -29,7 +29,8 @@
 
   var enabled = false;
   var cache = {};                    // 'ספר|פרק|פסוק' -> טקסט מנוקה
-  var cacheLoaded = false;
+  var cacheLoaded = false;           // loadCache was started
+  var cacheReady = false;            // …and the stored cache has been read
   var bookState = {};                // ספר -> 'loading' | 'done' | 'failed'
   var inflight = {};                 // מפתח prefetch -> Promise
 
@@ -50,6 +51,7 @@
     var v = await call('storage.get', { key: CACHE_KEY });
     if (v && typeof v === 'object') cache = v;
     else if (typeof v === 'string') { try { cache = JSON.parse(v) || {}; } catch (e) { cache = {}; } }
+    cacheReady = true;
     return Object.keys(cache).length > 0;
   }
   // Fire-and-forget storage.remove of the orphaned keys; any failure (no such key,
@@ -199,6 +201,14 @@
     return inflight[k];
   }
 
+  // האם טעינה של השירות הזה עדיין רצה ויש בה מה להמתין לו (המטמון עוד לא נקרא, או
+  // שחסרים פסוקים) — לחיווי "טוען טעמים…".
+  function isLoading(nusach, service) {
+    if (!enabled || !inflight[nusach + '/' + service]) return false;
+    if (!cacheReady) return true;
+    return neededVerses(entriesFor(nusach, service)).some(function (v) { return !cache[key(v)]; });
+  }
+
   // פסוקי הקטע מתוך המטמון; null אם חסר פסוק כלשהו (אז נשאר הטקסט המקורי).
   function buildLines(entry, originalText) {
     // פיצול למשפטים אחרי ':' או '.' — בלי lookbehind, שאינו נתמך ב-WebKit ישן
@@ -286,9 +296,10 @@
     retry: function () { bookState = {}; },
     isActive: function (nusach, service) { return entriesFor(nusach, service).length > 0; },
     prefetch: prefetch,
+    isLoading: isLoading,
     transform: transform,
     // לבדיקות
     _cleanVerse: cleanVerse, _parseBook: parseBook, _cache: function () { return cache; },
-    _reset: function () { cache = {}; cacheLoaded = true; bookState = {}; inflight = {}; }
+    _reset: function () { cache = {}; cacheLoaded = true; cacheReady = true; bookState = {}; inflight = {}; }
   };
 })(typeof window !== 'undefined' ? window : this);

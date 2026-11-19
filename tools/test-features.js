@@ -357,6 +357,19 @@ setTimeout(async function () {
   check('an unknown failure still shows the host message',
     /USERPROFILE/.test(I.shortcutErrorMessage({ code: 'error', message: 'error.internal: USERPROFILE not set' })));
 
+  // The SDK's error.category is used where the message text says nothing.
+  check('category "permission" alone → the permissions screen',
+    /ניהול הרשאות/.test(I.shortcutErrorMessage({ code: 'error.forbidden', category: 'permission', message: 'nope' })));
+  check('category "unsupported" alone → update Otzaria',
+    /עדכנו את אוצריא/.test(I.shortcutErrorMessage({ code: 'error.unknown_method', category: 'unsupported', message: 'nope' })));
+  check('permission message is short (one line + host detail)',
+    I.shortcutErrorMessage({ code: 'permission_denied', category: 'permission', message: 'Permission denied: ui.create_shortcut' }).split(String.fromCharCode(10)).length <= 2 &&
+    I.shortcutErrorMessage({ code: 'permission_denied', category: 'permission', message: 'x' }).length < 200);
+  check('kivun: category "not_found" → not installed',
+    /אינו מותקן/.test(I.kivunErrorMessage({ code: 'error.x', category: 'not_found', message: 'gone' })));
+  check('kivun: category "permission" → names the permission',
+    /פתיחת תוסף אחר/.test(I.kivunErrorMessage({ code: 'error.forbidden', category: 'permission', message: 'x' })));
+
   // The host's error must actually reach the user through ui.showError.
   const calls = [];
   win.Otzaria = {
