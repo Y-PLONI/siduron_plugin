@@ -246,7 +246,7 @@ body { overflow: hidden; -webkit-user-select: none; user-select: none; }
 .backdrop.open { opacity: 1; pointer-events: auto; }
 .panel {
   position: fixed; top: 12px; bottom: 12px; inset-inline-end: 12px;
-  width: min(380px, 92vw);
+  width: min(360px, 92vw);   /* 340–360px, one width for every panel (DESIGN_GUIDE) */
   background: var(--color-surface-container-high); color: var(--color-on-surface);
   border-radius: var(--radius); box-shadow: 0 8px 24px color-mix(in srgb, var(--color-shadow) 22%, transparent);
   z-index: 1001; display: flex; flex-direction: column; overflow: hidden;

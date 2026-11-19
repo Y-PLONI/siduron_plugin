@@ -255,6 +255,8 @@ setTimeout(async function () {
   check('segmented control wraps instead of clipping labels', /\.segmented\s*\{[^}]*flex-wrap:\s*wrap/.test(cssAll) && !/\.segmented button[^{]*\{[^}]*text-overflow/.test(cssAll));
   check('fields keep the theme field height', /\.date-field\s*\{[^}]*var\(--field-h\)/.test(cssAll) && /\.dropdown-field select\s*\{[^}]*var\(--field-h\)/.test(cssAll) && /\.segmented button\s*\{[^}]*var\(--field-h\)/.test(cssAll));
 
+  check('panels: one 360px width (capped by the viewport), no dead .panel-end class', /\.panel\s*\{[^}]*width:\s*min\(360px/.test(cssAll) && doc.querySelectorAll('.panel').length === 3 && !doc.querySelector('.panel-end'));
+
   // Fixed top bar with the plugin name (DESIGN_GUIDE: Top Bar).
   const topbar = doc.querySelector('header.topbar');
   check('top bar: header.topbar with the plugin name in <h1>', !!topbar && !!topbar.querySelector('h1') && topbar.querySelector('h1').textContent === 'סידורון');
