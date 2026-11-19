@@ -38,6 +38,7 @@
   --content-width: 760px;
   --ui-font: 'Heebo', 'Segoe UI', 'Noto Sans Hebrew', system-ui, sans-serif;
   --prayer-font: 'FrankRuhlCLM', 'Frank Ruhl Libre', 'David', 'Noto Serif Hebrew', serif;
+  --field-h: 40px;               /* input / select / segmented height (theme density) */
   --radius: 8px;                 /* the single corner radius (DS 1.2) */
   --radius-sm: var(--radius);    /* alias kept for existing references */
 }
@@ -130,7 +131,7 @@ body { overflow: hidden; -webkit-user-select: none; user-select: none; }
 @media (hover: hover) { .badge-btn:hover { background-image: linear-gradient(var(--state-hover), var(--state-hover)); } }
 .badge-btn:active { background-image: linear-gradient(var(--state-pressed), var(--state-pressed)); }
 .date-field {
-  width: 100%; height: 40px; box-sizing: border-box;
+  width: 100%; height: var(--field-h); box-sizing: border-box;
   border: 1px solid transparent; border-radius: var(--radius);
   background: var(--c-on-surface-subtle); color: var(--c-on-surface);
   font-family: inherit; font-size: 1rem; padding-inline: 16px; text-align: start;
@@ -305,7 +306,7 @@ body { overflow: hidden; -webkit-user-select: none; user-select: none; }
   flex: 1 1 0; min-width: 0;
   border: none; background: transparent;
   color: var(--c-on-surface-variant);
-  min-height: 40px; padding: 0 8px;
+  min-height: var(--field-h); padding: 0 8px;
   font-family: inherit; font-size: .875rem; cursor: pointer;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   transition: background .15s, color .15s;
@@ -329,7 +330,7 @@ body { overflow: hidden; -webkit-user-select: none; user-select: none; }
   transform: translateY(-65%) rotate(45deg);
 }
 .dropdown-field select {
-  width: 100%; height: 40px;
+  width: 100%; height: var(--field-h);
   border: 1px solid transparent; border-radius: var(--radius);
   background: var(--c-on-surface-subtle);
   color: var(--c-on-surface);
