@@ -18,7 +18,7 @@
 | [vendor/hebcal.js](vendor/hebcal.js) | חבילת הדפדפן הרשמית של `@hebcal/core` (לוח עברי + זמנים, offline). חושף `window.hebcal`. |
 | [data/siddur-data.js](data/siddur-data.js) | **נוצר אוטומטית** — קורפוס שחרית/מנחה/מעריב (`window.SIDDUR_DATA`, מ-smart-siddur). |
 | [data/extras-data.js](data/extras-data.js) | **נוצר אוטומטית** — תוספות וברכות (`window.SIDDUR_EXTRAS`, מ-tfilon). |
-| [data/slichot-data.js](data/slichot-data.js) | **נוצר אוטומטית** — סליחות נוסח אשכנז (`window.SIDURON_SLICHOT`), מ-`tools/data-overrides/slichot_ashkenaz*.json`. נבחר בזמן ריצה לפי דגלי `slichot_*` (`js/calendar.js`, `SiduronServices.slichotId`); הטאב "סליחות" מופיע רק באשכנז, בימי סליחות. |
+| [data/slichot-data.js](data/slichot-data.js) | **נוצר אוטומטית** — סליחות נוסח אשכנז (`window.SIDURON_SLICHOT`), מ-`tools/data-overrides/slichot_ashkenaz*.json`. נבחר בזמן ריצה לפי דגלי `slichot_*` (`js/calendar.js`, `SiduronServices.slichotId`); הטאב "סליחות" מופיע רק באשכנז, בימי סליחות (נקבע מהדגלים בלבד). **נטען עצלות** — לא ב-`index.html` אלא ב-`<script src>` דינמי (`SiduronServices.loadData`) כשהטאב נפתח. |
 | [js/extras.js](js/extras.js) | תפריט התוספות + רינדור, עם מעריך-תנאים שממיר תגי-תנאי של tfilon ל-flags (כך שיעלה-ויבוא בברכת המזון מופיע רק בר"ח, על-הנסים רק בחנוכה/פורים וכו'). |
 | [js/calendar.js](js/calendar.js) | מנוע ה-flags ההלכתי. ניוד נאמן של `halachic_calendar_service.dart` מ-smart-siddur מעל hebcal → `flagsFor(date, ctx)`. |
 | [js/assembler.js](js/assembler.js) | הרכבת התפילה: gate של `condition_flags`/`exclude_flags` ברמת template וברמת section, רקורסיה ל-sub-templates, ו-post-processors (עומר, קרבנות, קריאת שני/חמישי, ר"ח טבת, שיר-של-יום גר"א). |

@@ -500,9 +500,11 @@
   // The item is picked from the slichot_* day flags (js/calendar.js) by the ORDINAL
   // day of slichot (day1..day7 in Elul, ayt_2..ayt_5 after צום גדליה) — the book
   // numbers its days that way, not by weekday. null for other nuschaot / days.
-  function slichotId(nusach, dayFlags) {
-    var d = global.SIDURON_SLICHOT;
-    if (nusach !== 'ashkenaz' || !d || !d.ashkenaz) return null;
+  // slichotKey decides from the flags alone (no data needed — the tab can be
+  // offered before data/slichot-data.js is loaded, see loadData); slichotId also
+  // checks that the item exists in the loaded data.
+  function slichotKey(nusach, dayFlags) {
+    if (nusach !== 'ashkenaz') return null;
     var flags = (dayFlags && dayFlags.flags) || [], id = null, i, mm;
     var hasF = makeHas(dayFlags);
     if (hasF('slichot_erev_rh')) id = 'erev_rosh_hashana';
@@ -512,18 +514,68 @@
       if ((mm = /^slichot_elul_day_(\d)$/.exec(flags[i]))) id = 'day' + mm[1];
       else if ((mm = /^slichot_ayt_(\d)$/.exec(flags[i]))) id = 'ayt_' + mm[1];
     }
-    return id && d.ashkenaz[id] ? id : null;
+    return id;
   }
-  function hasSlichot(nusach, dayFlags) { return !!slichotId(nusach, dayFlags); }
+  function slichotId(nusach, dayFlags) {
+    var d = global.SIDURON_SLICHOT, id = slichotKey(nusach, dayFlags);
+    return id && d && d.ashkenaz && d.ashkenaz[id] ? id : null;
+  }
+  function hasSlichot(nusach, dayFlags) { return !!slichotKey(nusach, dayFlags); }
   function renderSlichot(nusach, dayFlags) {
     var id = slichotId(nusach, dayFlags);
     if (!id) return null;
     return renderSegs(global.SIDURON_SLICHOT.ashkenaz[id], dayFlags);
   }
 
+  /* ────────────── טעינה עצלה של קבצי הנתונים הגדולים ──────────────
+   * data/shabbat-data.js (שבת + יום טוב: SIDURON_SHABBAT ו-SIDURON_YOMTOV, אותו קובץ)
+   * ו-data/slichot-data.js (SIDURON_SLICHOT) לא נטענים ב-index.html: רק כשתפילה שצריכה
+   * אותם נפתחת (ראו openService ב-js/app.js). הטעינה היא <script src> דינמי לקובץ
+   * מתיקיית ההתקנה (מותר לפי ה-CSP של התוסף). loadData מחזירה Promise שנשמר במטמון —
+   * קריאה חוזרת לא מוסיפה תג script — ונדחית אם הקובץ לא נטען, כך שאפשר לנסות שוב.
+   * שאר הקוד קורא את המשתנים הגלובליים רק אחרי שה-Promise התמלא. */
+  var LAZY = {
+    slichot: { src: 'data/slichot-data.js', glob: 'SIDURON_SLICHOT' },
+  };
+  var LAZY_TIMEOUT_MS = 30000;
+  var lazyLoads = {};
+  function dataLoaded(key) { return !!(LAZY[key] && global[LAZY[key].glob]); }
+  function loadData(key) {
+    var spec = LAZY[key];
+    if (!spec) return Promise.reject(new Error('unknown data file: ' + key));
+    if (dataLoaded(key)) return Promise.resolve();          // already there (or inlined by a harness)
+    if (lazyLoads[key]) return lazyLoads[key];
+    var doc = global.document;
+    if (!doc || !doc.createElement) return Promise.reject(new Error('cannot load ' + spec.src));
+    var p = new Promise(function (resolve, reject) {
+      var s = doc.createElement('script'), timer = null, done = false;
+      function finish(err) {
+        if (done) return;
+        done = true;
+        if (timer) clearTimeout(timer);
+        s.onload = s.onerror = null;
+        if (err) {                                           // forget the failed attempt: a retry makes a fresh tag
+          if (s.parentNode) s.parentNode.removeChild(s);
+          delete lazyLoads[key];
+          reject(err);
+        } else resolve();
+      }
+      s.onload = function () { finish(dataLoaded(key) ? null : new Error(spec.src + ' did not define ' + spec.glob)); };
+      s.onerror = function () { finish(new Error('failed to load ' + spec.src)); };
+      timer = setTimeout(function () { finish(new Error('timeout loading ' + spec.src)); }, LAZY_TIMEOUT_MS);
+      s.async = true;
+      s.setAttribute('data-lazy', key);
+      s.src = spec.src;
+      (doc.head || doc.body || doc.documentElement).appendChild(s);
+    });
+    lazyLoads[key] = p;
+    return p;
+  }
+
   global.SiduronServices = {
     render: render, has: has,
-    renderSlichot: renderSlichot, hasSlichot: hasSlichot, slichotId: slichotId,
+    renderSlichot: renderSlichot, hasSlichot: hasSlichot, slichotId: slichotId, slichotKey: slichotKey,
+    loadData: loadData, dataLoaded: dataLoaded,
     renderShabbat: renderShabbat, hasShabbat: hasShabbat,
     renderYomtov: renderYomtov, hasYomtov: hasYomtov,
     _evalTag: evalTag,

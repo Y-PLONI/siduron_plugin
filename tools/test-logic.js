@@ -384,6 +384,8 @@ console.log('\n── סליחות (אשכנז): אלול, ערב ר"ה, עשי"
   const mk = (day, n, over) => `var df=SiduronCalendar.flagsFor(new Date(${JSON.stringify(day + 'T12:00:00')}),${JSON.stringify(Object.assign({}, BASE, { nusach: n }, over || {}))});`;
   const sid = (day, n, over) => vm.runInContext(`(function(){${mk(day, n, over)}return SiduronServices.slichotId(${JSON.stringify(n)},df);})()`, ctx);
   const html = (day, n, over) => vm.runInContext(`(function(){${mk(day, n, over)}var r=SiduronServices.renderSlichot(${JSON.stringify(n)},df);return r?r.html:null;})()`, ctx);
+  // hasSlichot (what offers the tab) decides from the flags alone so it works before the lazy data file is loaded; it must agree with slichotId everywhere.
+  const hasS = (day, n) => vm.runInContext(`(function(){${mk(day, n)}return SiduronServices.hasSlichot(${JSON.stringify(n)},df);})()`, ctx);
   const DATA = vm.runInContext('SIDURON_SLICHOT.ashkenaz', ctx);
   // oracle: expected slichot item per date, from calendar facts only
   // The book numbers days by ORDER of slichot (שבת not counted): Elul day1..day7,
@@ -420,6 +422,7 @@ console.log('\n── סליחות (אשכנז): אלול, ערב ר"ה, עשי"
       total++; if (exp) shown++;
       const got = sid(day, 'ashkenaz');
       if (got !== exp) bad.push(day + ' exp ' + exp + ' got ' + got);
+      if (hasS(day, 'ashkenaz') !== (got !== null) || hasS(day, 'sfard') || hasS(day, 'edot_mizrach')) bad.push(day + ' hasSlichot disagrees with slichotId');
       if (sid(day, 'sfard') !== null || sid(day, 'edot_mizrach') !== null) bad.push(day + ' other nusach');
     }
   }

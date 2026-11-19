@@ -843,6 +843,10 @@
       var yomtovSvc = yomtovServiceKey(id, flags);
       var shabbatSvc = shabbatServiceKey(id, flags);
       var S = window.SiduronServices;
+      // קבצי נתונים גדולים שנטענים רק כשצריך (SiduronServices.loadData): אם התפילה הזו
+      // תלויה באחד מהם והוא עדיין לא כאן — מציגים "טוען…", ומרנדרים כשהגיע.
+      var lazyKey = lazyDataKey(id, yomtovSvc, shabbatSvc);
+      if (lazyKey && S && !S.dataLoaded(lazyKey)) { loadLazyThenOpen(svc, lazyKey, keepScroll); return; }
       if (id === 'slichot') {
         result = S.renderSlichot(STATE.nusach, flags);
       } else if (yomtovSvc && S && S.hasYomtov(STATE.nusach, yomtovSvc)) {
@@ -896,6 +900,31 @@
       contentEl.insertBefore(ind, contentEl.firstChild);
     }
     renderNavList();
+  }
+  // Which lazily loaded data file (see js/services.js) the service being opened is
+  // rendered from, or null. Mirrors the routing in openService.
+  function lazyDataKey(serviceId, yomtovSvc, shabbatSvc) {
+    if (serviceId === 'slichot') return 'slichot';
+    return null;
+  }
+  // Load `key`, showing a loading state meanwhile, then open the same service
+  // again; a failure becomes an error state whose "נסה שוב" retries the load.
+  function loadLazyThenOpen(svc, key, keepScroll) {
+    var id = svc.id, contentEl = document.getElementById('content');
+    STATE.nav = [];
+    renderNavList();
+    setTitle(svc.he);
+    showState(contentEl, 'loading', 'טוען…');
+    window.SiduronServices.loadData(key).then(function () {
+      // The reader moved on meanwhile (another tab / day): that view owns the content now.
+      if (STATE.service === id) openService(id, keepScroll);
+    }, function (e) {
+      console.warn('[siduron] failed to load ' + key + ' data:', e);
+      if (STATE.service !== id) return;
+      showState(contentEl, 'error', 'לא ניתן היה לטעון את התפילה',
+        { message: 'קובץ הנתונים לא נטען. נסו שוב; אם זה חוזר — הפעילו מחדש את התוסף.' },
+        function () { openService(id); });
+    });
   }
   function hideTeamimLoading() {
     var ind = document.getElementById('teamim-loading');
