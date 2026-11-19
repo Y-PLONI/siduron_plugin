@@ -12,16 +12,11 @@
   "minAppVersion": "0.9.97",
   "sdkVersion": "1.x",
   "permissions": [
-    "app.info.read",
     "calendar.read",
     "settings.read",
     "library.content.read",
-    "plugin.storage.read",
-    "plugin.storage.write",
-    "ui.feedback",
     "ui.create_shortcut",
     "plugin.open_other",
-    "events.subscribe:theme.changed",
     "events.subscribe:settings.changed"
   ],
   "network": {
