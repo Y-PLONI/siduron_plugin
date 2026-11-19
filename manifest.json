@@ -27,7 +27,6 @@
     "toolTab": {
       "title": "סידורון",
       "order": 300,
-      "allowOrderBeforeBuiltIns": false,
       "defaultPinned": true,
       "iconName": "book_open_24_regular"
     }
