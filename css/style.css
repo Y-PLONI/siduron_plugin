@@ -259,6 +259,7 @@ body { overflow: hidden; -webkit-user-select: none; user-select: none; }
   padding: 16px 16px 12px; font-weight: 600; font-size: 1.125rem;
   flex: 0 0 auto;
 }
+.panel-title { margin: 0; font: inherit; }
 .panel-body { overflow-y: auto; padding: var(--space-xs) var(--space-md) var(--space-md); }
 
 /* כרטיס תוכן בתוך חלונית (ללא כותרת) — אחיד עם חלונית ההגדרות */

@@ -1285,17 +1285,62 @@
     setKivunLabel(granted);
   }
 
-  /* ────────────── Panels ────────────── */
-  function closeAllPanels() {
+  /* ────────────── Panels (modal dialogs) ────────────── */
+  // The panels are role="dialog" aria-modal: opening moves focus inside, Tab/Shift+Tab
+  // cycle within the open panel, and closing returns focus to the control that opened it.
+  var PANEL_OPENERS = { 'panel-nav': 'btn-nav', 'panel-zmanim': 'btn-zmanim', 'panel-settings': 'btn-settings' };
+  var panelOpener = null;           // the element to give focus back to on close
+  var FOCUSABLE = 'button, [href], input, select, textarea, summary, [tabindex]:not([tabindex="-1"])';
+  function openPanelEl() { return document.querySelector('.panel.open'); }
+  function focusableIn(root) {
+    return Array.prototype.filter.call(root.querySelectorAll(FOCUSABLE), function (el) {
+      return !el.disabled && !el.closest('[hidden]');
+    });
+  }
+  // Close without touching focus (togglePanel uses it to swap one panel for another).
+  function hidePanels() {
     var open = document.querySelectorAll('.panel.open');
     for (var i = 0; i < open.length; i++) open[i].classList.remove('open');
     var bd = document.getElementById('backdrop'); if (bd) bd.classList.remove('open');
+    return open.length > 0;
+  }
+  function closeAllPanels() {
+    var wasOpen = hidePanels();
+    var opener = panelOpener; panelOpener = null;
+    if (wasOpen && opener && opener.isConnected && !opener.hidden && opener.focus) opener.focus();
+  }
+  function focusIntoPanel(p) {
+    var body = p.querySelector('.panel-body');
+    var first = (body && focusableIn(body)[0]) || p.querySelector('.panel-title');
+    if (!first) return;
+    first.focus();
+    // A panel that only just became visible may not take focus in the same frame.
+    if (!p.contains(document.activeElement)) setTimeout(function () { if (p.classList.contains('open')) first.focus(); }, 50);
   }
   function togglePanel(panelId) {
     var p = document.getElementById(panelId); if (!p) return;
     var wasOpen = p.classList.contains('open');
-    closeAllPanels();
-    if (!wasOpen) { p.classList.add('open'); document.getElementById('backdrop').classList.add('open'); }
+    if (wasOpen) { closeAllPanels(); return; }
+    var active = document.activeElement;
+    var opener = (active && active !== document.body && !active.closest('.panel') && active) ||
+      document.getElementById(PANEL_OPENERS[panelId]);
+    hidePanels();
+    p.classList.add('open'); document.getElementById('backdrop').classList.add('open');
+    panelOpener = opener;
+    focusIntoPanel(p);
+  }
+  // Escape closes; Tab stays inside the open panel.
+  function onPanelKeydown(e) {
+    if (e.key === 'Escape') { closeAllPanels(); return; }
+    if (e.key !== 'Tab') return;
+    var p = openPanelEl(); if (!p) return;
+    var items = focusableIn(p);
+    if (!items.length) { e.preventDefault(); return; }
+    var first = items[0], last = items[items.length - 1], active = document.activeElement;
+    if (!p.contains(active) || active === p.querySelector('.panel-title')) {
+      e.preventDefault(); (e.shiftKey ? last : first).focus();
+    } else if (e.shiftKey && active === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && active === last) { e.preventDefault(); first.focus(); }
   }
 
   /* ────────────── Load / save settings ────────────── */
@@ -1401,7 +1446,7 @@
     var bd = document.getElementById('backdrop'); if (bd) bd.onclick = closeAllPanels;
     var closers = document.querySelectorAll('[data-close]');
     for (var i = 0; i < closers.length; i++) closers[i].onclick = closeAllPanels;
-    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeAllPanels(); });
+    document.addEventListener('keydown', onPanelKeydown);
     document.getElementById('fs-dec').onclick = function () { changeFont(-1); };
     document.getElementById('fs-inc').onclick = function () { changeFont(1); };
 

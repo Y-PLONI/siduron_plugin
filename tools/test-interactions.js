@@ -145,6 +145,34 @@ setTimeout(async function () {
     check('success toast on created', sdkCalls.some(c => c[0] === 'ui.showSuccess'));
   }
 
+  // Panels are modal dialogs: labelled, focus moves in, Tab is trapped, focus returns on close.
+  ['panel-nav', 'panel-zmanim', 'panel-settings'].forEach(id => {
+    const pn = doc.getElementById(id);
+    check(id + ': role=dialog, aria-modal, labelled by its title',
+      pn.getAttribute('role') === 'dialog' && pn.getAttribute('aria-modal') === 'true' &&
+      !!doc.getElementById(pn.getAttribute('aria-labelledby')) && !pn.hasAttribute('aria-label'));
+  });
+  function key(k, opts) {
+    const ev = new win.KeyboardEvent('keydown', Object.assign({ key: k, bubbles: true, cancelable: true }, opts || {}));
+    (doc.activeElement || doc).dispatchEvent(ev);
+    return ev;
+  }
+  { const b = doc.getElementById('backdrop'); b.onclick.call(b); }          // start with everything closed
+  const setBtn = doc.getElementById('btn-settings'), setPanel = doc.getElementById('panel-settings');
+  setBtn.focus(); click('btn-settings');
+  check('dialog open: focus moved inside the panel', setPanel.classList.contains('open') && setPanel.contains(doc.activeElement));
+  const foc = Array.from(setPanel.querySelectorAll('button, input, select')).filter(e => !e.closest('[hidden]'));
+  foc[foc.length - 1].focus();
+  check('Tab from the last control wraps to the first', key('Tab').defaultPrevented && doc.activeElement === foc[0]);
+  check('Shift+Tab from the first control wraps to the last', key('Tab', { shiftKey: true }).defaultPrevented && doc.activeElement === foc[foc.length - 1]);
+  key('Escape');
+  check('Escape closes the dialog and restores focus to its opener', !setPanel.classList.contains('open') && doc.activeElement === setBtn);
+  doc.getElementById('btn-zmanim').focus(); click('btn-zmanim');
+  const zpanel = doc.getElementById('panel-zmanim');
+  check('panel without fields: focus lands on its title', doc.activeElement === zpanel.querySelector('.panel-title'));
+  const zc = zpanel.querySelector('[data-close]'); zc.onclick.call(zc);
+  check('close button restores focus to the opener', doc.activeElement === doc.getElementById('btn-zmanim'));
+
   // Fixed top bar with the plugin name (DESIGN_GUIDE: Top Bar).
   const topbar = doc.querySelector('header.topbar');
   check('top bar: header.topbar with the plugin name in <h1>', !!topbar && !!topbar.querySelector('h1') && topbar.querySelector('h1').textContent === 'סידורון');
