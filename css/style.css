@@ -325,25 +325,26 @@ body { overflow: hidden; -webkit-user-select: none; user-select: none; }
 .settings-row-subtitle { font-size: .75rem; color: var(--color-on-surface-variant); margin-top: 2px; }
 .settings-row-subtitle.warn { color: var(--color-error); }
 
-/* Connected segmented control, full-width */
+/* Connected segmented control, full-width. Segments keep their full label and wrap onto
+   another row when they cannot all fit; the 1px gap over the border colour draws the dividers. */
 .segmented {
-  display: flex;
+  display: flex; flex-wrap: wrap; gap: 1px;
+  background: var(--color-outline-variant);
   border: 1px solid var(--color-outline-variant);
   border-radius: var(--radius);
   overflow: hidden;
 }
 .segmented button {
-  flex: 1 1 0; min-width: 0;
-  border: none; background: transparent;
+  flex: 1 1 0; min-width: max-content;
+  border: none; background: var(--surface-card);
   color: var(--color-on-surface-variant);
-  min-height: var(--field-h); padding: 0 8px;
+  min-height: var(--field-h); padding: 0 var(--space-smd);
   font-family: inherit; font-size: .875rem; cursor: pointer;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap;
   transition: background .15s, color .15s;
 }
-.segmented button + button { border-inline-start: 1px solid var(--color-outline-variant); }
-@media (hover: hover) { .segmented button:hover:not(.active) { background-color: var(--state-hover); } }
-.segmented button:active:not(.active) { background-color: var(--state-pressed); }
+@media (hover: hover) { .segmented button:hover:not(.active) { background-image: linear-gradient(var(--state-hover), var(--state-hover)); } }
+.segmented button:active:not(.active) { background-image: linear-gradient(var(--state-pressed), var(--state-pressed)); }
 .segmented button.active {                          /* selected segment */
   background: var(--color-secondary-container);
   color: var(--color-on-secondary-container);

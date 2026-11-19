@@ -252,6 +252,9 @@ setTimeout(async function () {
   check('CSS: error state uses --color-error, spinner is static under reduced motion',
     /\.state-error \.state-icon[^{]*\{[^}]*var\(--color-error\)/.test(cssAll) && /prefers-reduced-motion[\s\S]*\.spinner\s*\{\s*animation:\s*none/.test(cssAll));
 
+  check('segmented control wraps instead of clipping labels', /\.segmented\s*\{[^}]*flex-wrap:\s*wrap/.test(cssAll) && !/\.segmented button[^{]*\{[^}]*text-overflow/.test(cssAll));
+  check('fields keep the theme field height', /\.date-field\s*\{[^}]*var\(--field-h\)/.test(cssAll) && /\.dropdown-field select\s*\{[^}]*var\(--field-h\)/.test(cssAll) && /\.segmented button\s*\{[^}]*var\(--field-h\)/.test(cssAll));
+
   // Fixed top bar with the plugin name (DESIGN_GUIDE: Top Bar).
   const topbar = doc.querySelector('header.topbar');
   check('top bar: header.topbar with the plugin name in <h1>', !!topbar && !!topbar.querySelector('h1') && topbar.querySelector('h1').textContent === 'סידורון');
