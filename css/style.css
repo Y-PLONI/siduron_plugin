@@ -30,6 +30,13 @@
 }
 
 * { box-sizing: border-box; }
+
+/* Visible keyboard focus ring (DS 2.6 / 6.2) — primary, 2px, offset 2px. */
+:focus-visible { outline: 2px solid var(--c-primary); outline-offset: 2px; }
+button:focus-visible, select:focus-visible, input:focus-visible,
+summary:focus-visible, .switch:focus-visible { outline: 2px solid var(--c-primary); outline-offset: 2px; }
+.segmented button:focus-visible, .tab:focus-visible, .mini-tab:focus-visible,
+.nav-item:focus-visible { outline-offset: -2px; }   /* clipped by overflow parents */
 html, body {
   margin: 0; padding: 0; height: 100%;
   background: var(--c-surface);
@@ -109,7 +116,7 @@ body { overflow: hidden; }
   font-family: inherit; font-size: 1rem; padding-inline: 14px; text-align: start;
 }
 .date-field:hover { background: var(--c-on-surface-hover); }
-.date-field:focus { background: var(--c-on-surface-hover); border-color: var(--c-primary-border); outline: none; }
+.date-field:focus { background: var(--c-on-surface-hover); border-color: var(--c-primary); }
 .badge.b-ghost  { background: transparent; color: var(--c-on-surface-variant); border: 1px solid var(--c-outline-variant); }
 
 .dark .badge.b-blue   { background: #21304f; color: #BFD4FF; }
@@ -305,7 +312,7 @@ body { overflow: hidden; }
   transition: background .12s, border-color .12s;
 }
 .dropdown-field select:hover { background: var(--c-on-surface-hover); }
-.dropdown-field select:focus { background: var(--c-on-surface-hover); border-color: var(--c-primary-border); outline: none; }
+.dropdown-field select:focus { background: var(--c-on-surface-hover); border-color: var(--c-primary); }
 .switch {
   width: 46px; height: 26px; border-radius: 999px; border: 2px solid var(--c-outline);
   background: transparent; position: relative; cursor: pointer; transition: .2s; flex: 0 0 auto;
