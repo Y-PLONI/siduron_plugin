@@ -905,6 +905,8 @@
   // rendered from, or null. Mirrors the routing in openService.
   function lazyDataKey(serviceId, yomtovSvc, shabbatSvc) {
     if (serviceId === 'slichot') return 'slichot';
+    // שבת ויום טוב באותו קובץ (SIDURON_SHABBAT + SIDURON_YOMTOV): שניהם תלויים בו.
+    if (yomtovSvc || shabbatSvc) return 'shabbat';
     return null;
   }
   // Load `key`, showing a loading state meanwhile, then open the same service

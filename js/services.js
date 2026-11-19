@@ -535,6 +535,7 @@
    * קריאה חוזרת לא מוסיפה תג script — ונדחית אם הקובץ לא נטען, כך שאפשר לנסות שוב.
    * שאר הקוד קורא את המשתנים הגלובליים רק אחרי שה-Promise התמלא. */
   var LAZY = {
+    shabbat: { src: 'data/shabbat-data.js', glob: 'SIDURON_SHABBAT' },
     slichot: { src: 'data/slichot-data.js', glob: 'SIDURON_SLICHOT' },
   };
   var LAZY_TIMEOUT_MS = 30000;
