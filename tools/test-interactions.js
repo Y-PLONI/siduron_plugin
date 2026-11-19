@@ -99,6 +99,7 @@ setTimeout(async function () {
       check('birkat hamazon renders in extras view', content().length > 3000 && /יהוה|הַזָּ|בְרִיךְ/.test(content()));
       const back = doc.getElementById('extras-back');
       check('back-to-list button present', !!back);
+      check('back button: inline SVG chevron, no ‹ glyph, name kept', !!back && !!back.querySelector('svg[aria-hidden="true"]') && !/[‹›]/.test(back.textContent) && /חזרה לרשימת התוספות/.test(back.textContent));
       if (back) { back.onclick.call(back); check('back returns to menu', !!doc.querySelector('#content [data-extra]')); }
     }
   }
@@ -218,6 +219,13 @@ setTimeout(async function () {
   check('every labelled button has a tooltip' + (noTitle.length ? ' (missing: ' + noTitle.map(b => b.id || b.className).join(',') + ')' : ''), noTitle.length === 0);
   ['fs-dec', 'fs-inc'].forEach(id => { const b = doc.getElementById(id); check(id + ': title equals its aria-label', b.title === b.getAttribute('aria-label') && b.title.length > 0); });
   doc.querySelectorAll('[data-close]').forEach(b => check('panel close button title "סגירה"', b.title === 'סגירה' && b.getAttribute('aria-label') === 'סגירה'));
+
+  // Icons are inline SVG (currentColor, decorative), not text glyphs.
+  ['fs-dec', 'fs-inc'].forEach(id => {
+    const b = doc.getElementById(id), sv = b.querySelector('svg');
+    check(id + ': inline SVG icon, no text glyph', !!sv && sv.getAttribute('aria-hidden') === 'true' && sv.getAttribute('stroke') === 'currentColor' && b.textContent.trim() === '' && !!b.getAttribute('aria-label'));
+  });
+  check('close buttons: SVG only (no ✕ text)', Array.from(doc.querySelectorAll('[data-close]')).every(b => !!b.querySelector('svg') && b.textContent.trim() === ''));
 
   // Fixed top bar with the plugin name (DESIGN_GUIDE: Top Bar).
   const topbar = doc.querySelector('header.topbar');

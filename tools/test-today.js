@@ -110,6 +110,7 @@ setTimeout(async function () {
   check('custom day shown', ymd(S.date) === '2026-12-25', ymd(S.date));
   check('custom day: never "advanced"', S.dayAdvanced === false);
   check('custom day: header badge visible', !!doc.getElementById('hdr-custom'));
+  check('custom day: badge icon is an inline SVG, not a ✕ glyph', !!doc.querySelector('#hdr-custom svg[aria-hidden="true"]') && !/[✕✖×]/.test(doc.getElementById('hdr-custom').textContent));
   check('custom day: date input holds it', doc.getElementById('set-date').value === '2026-12-25');
   check('custom day: "back to today" button shown', doc.getElementById('set-date-today').hidden === false);
   check('custom day: not saved to storage', !calls.some(c => c[0] === 'storage.set' && /date/i.test(String(c[1] && c[1].key))));

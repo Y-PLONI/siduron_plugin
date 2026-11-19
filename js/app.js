@@ -119,6 +119,15 @@
     'purim', 'fast_day', 'tisha_beav', 'tu_bishvat', 'lag_baomer', 'tu_bav',
     'pesach_sheni', 'isru_chag', 'yom_kippur_katan', 'omer_period'];
 
+  /* ────────────── Inline icons (currentColor, decorative — the button carries the name) ────────────── */
+  function svgIcon(cls, inner) {
+    return '<svg class="icon ' + cls + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ' +
+      'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">' + inner + '</svg>';
+  }
+  var ICON_CLOSE = svgIcon('icon-sm', '<line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/>');
+  // Points to the start of the line: the back direction (mirrored in RTL by CSS).
+  var ICON_BACK = svgIcon('icon-flip', '<polyline points="15 6 9 12 15 18"/>');
+
   /* ────────────── Otzaria SDK helpers ────────────── */
   function hasOtzaria() { return typeof window.Otzaria !== 'undefined' && window.Otzaria.call; }
   async function call(method, params) {
@@ -671,7 +680,7 @@
       back.className = 'badge b-red badge-btn';
       back.id = 'hdr-custom';
       back.title = 'חזרה להיום';
-      back.textContent = 'תאריך שנבחר · חזרה להיום ✕';
+      back.innerHTML = 'תאריך שנבחר · חזרה להיום ' + ICON_CLOSE;
       back.onclick = function () { setCustomDate(null); };
       bEl.insertBefore(back, bEl.firstChild);
     }
@@ -914,7 +923,7 @@
     var result = window.SiduronExtras.renderExtra(STATE.extra, STATE.nusach, STATE.dayFlags);
     STATE.nav = result.nav || [];
     contentEl.innerHTML =
-      '<button class="extras-back" id="extras-back">‹ חזרה לרשימת התוספות</button>' +
+      '<button class="extras-back" id="extras-back">' + ICON_BACK + '<span>חזרה לרשימת התוספות</span></button>' +
       '<div class="prayer fade-in">' + applyDivineName(result.html) + '</div>';
     restoreScroll();
     var back = document.getElementById('extras-back');

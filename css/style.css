@@ -107,6 +107,10 @@ body { overflow: hidden; -webkit-user-select: none; user-select: none; }
 }
 .tool-btn svg { width: 20px; height: 20px; }
 .tool-btn[hidden] { display: none; }
+/* Inline icons (js/app.js svgIcon): text-sized, follow the text colour. */
+.icon { width: 20px; height: 20px; flex: none; vertical-align: middle; }
+.icon-sm { width: 14px; height: 14px; margin-inline-start: var(--space-xs); }
+[dir=rtl] .icon-flip { transform: scaleX(-1); }
 @media (hover: hover) { .tool-btn:hover { background-color: var(--state-hover); color: var(--color-on-surface); } }
 .tool-btn:active { background-color: var(--state-pressed); color: var(--color-on-surface); }
 
@@ -404,11 +408,13 @@ body { overflow: hidden; -webkit-user-select: none; user-select: none; }
   padding: 4px 8px; box-shadow: 0 8px 24px color-mix(in srgb, var(--color-shadow) 22%, transparent);
 }
 .fs-btn {
+  display: inline-flex; align-items: center; justify-content: center; padding: 0;
   border: none; background: transparent; color: var(--color-on-surface);
   width: 34px; height: 30px; border-radius: var(--radius); cursor: pointer; font-size: .875rem; font-weight: 700;
 }
 @media (hover: hover) { .fs-btn:hover { background-color: var(--state-hover); } }
 .fs-btn:active { background-color: var(--state-pressed); }
+.fs-btn svg { width: 20px; height: 20px; }
 .fs-val { min-width: 24px; text-align: center; font-size: .875rem; font-variant-numeric: tabular-nums; }
 
 /* ── Extras (תוספות) ── */
@@ -427,7 +433,7 @@ body { overflow: hidden; -webkit-user-select: none; user-select: none; }
 @media (hover: hover) { .extra-card:hover { background-color: var(--state-hover); border-color: var(--color-primary); } }
 .extra-card:active { background-color: var(--state-pressed); border-color: var(--color-primary); }
 .extras-back {
-  display: inline-block; margin: 8px 0 4px; border: none; background: transparent;
+  display: inline-flex; align-items: center; gap: var(--space-xs); margin: 8px 0 4px; border: none; background: transparent;
   color: var(--color-primary); font-size: 1rem; font-weight: 600; cursor: pointer; font-family: inherit;
 }
 @media (hover: hover) { .extras-back:hover { text-decoration: underline; } }
