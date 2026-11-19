@@ -7,6 +7,12 @@
   --c-secondary: #625B71;
   --c-secondary-container: #E8DEF8;
   --c-on-secondary-container: #1D192B;
+  --c-primary-container: #EADDFF;
+  --c-on-primary-container: #21005D;
+  --c-tertiary-container: #FFD8E4;
+  --c-on-tertiary-container: #31111D;
+  --c-error-container: #F9DEDC;
+  --c-on-error-container: #410E0B;
   --c-surface: #FEF7FF;
   --c-on-surface: #1D1B20;
   --c-on-surface-variant: #49454F;
@@ -108,12 +114,13 @@ body { overflow: hidden; }
   background: var(--c-secondary-container); color: var(--c-on-secondary-container);
   white-space: nowrap;
 }
-.badge.b-blue   { background: #DCE7FF; color: #0B3D91; }
-.badge.b-green  { background: #D7F0DC; color: #14502A; }
-.badge.b-amber  { background: #FCEBC8; color: #6B4E00; }
-.badge.b-red    { background: #FBDAD7; color: #8C1D18; }
-.badge.b-purple { background: #ECE0FF; color: #3F2A6B; }
-.badge.b-teal   { background: #CDEFEC; color: #0B4C49; }
+/* Badge tones map to theme roles; the host theme recolours them (and dark mode follows). */
+.badge.b-blue   { background: var(--c-primary-container);   color: var(--c-on-primary-container); }    /* shabbat, rosh chodesh */
+.badge.b-green  { background: var(--c-tertiary-container);  color: var(--c-on-tertiary-container); }   /* festivals */
+.badge.b-amber  { background: var(--c-tertiary-container);  color: var(--c-on-tertiary-container); }   /* chanukah, purim, lag baomer */
+.badge.b-purple { background: var(--c-secondary-container); color: var(--c-on-secondary-container); }  /* days of awe */
+.badge.b-red    { background: var(--c-error-container);     color: var(--c-on-error-container); }      /* fasts, back-to-today */
+.badge.b-teal   { background: var(--c-surface-container-high); color: var(--c-on-surface); box-shadow: inset 0 0 0 1px var(--c-outline-variant); } /* omer */
 .badge-btn { border: none; font-family: inherit; cursor: pointer; }
 @media (hover: hover) { .badge-btn:hover { background-image: linear-gradient(var(--state-hover), var(--state-hover)); } }
 .badge-btn:active { background-image: linear-gradient(var(--state-pressed), var(--state-pressed)); }
@@ -126,13 +133,6 @@ body { overflow: hidden; }
 @media (hover: hover) { .date-field:hover { background-image: linear-gradient(var(--state-hover), var(--state-hover)); } }
 .date-field:focus { background: var(--c-on-surface-hover); border-color: var(--c-primary); }
 .badge.b-ghost  { background: transparent; color: var(--c-on-surface-variant); border: 1px solid var(--c-outline-variant); }
-
-.dark .badge.b-blue   { background: #21304f; color: #BFD4FF; }
-.dark .badge.b-green  { background: #1d3a27; color: #B8E6C4; }
-.dark .badge.b-amber  { background: #4a3a14; color: #F4D58A; }
-.dark .badge.b-red    { background: #4d211e; color: #F6B4AE; }
-.dark .badge.b-purple { background: #342450; color: #D6C2FF; }
-.dark .badge.b-teal   { background: #103e3b; color: #9FE0DB; }
 
 /* ── Tabs ── */
 .tabs { display: flex; gap: 4px; margin-top: 4px; overflow-x: auto; }
