@@ -1,6 +1,7 @@
 /* style.css — Siduron v2. Material-3-aligned, RTL, theme-variable driven. */
 
 :root {
+  color-scheme: light;
   --c-primary: #6750A4;
   --c-on-primary: #ffffff;
   --c-secondary: #625B71;
@@ -28,6 +29,9 @@
   --radius: 16px;
   --radius-sm: 10px;
 }
+
+/* The app toggles .dark on <body> (applyTheme in js/app.js). */
+body.dark, :root:has(body.dark) { color-scheme: dark; }
 
 * { box-sizing: border-box; }
 
