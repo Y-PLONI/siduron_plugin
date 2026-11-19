@@ -1435,10 +1435,10 @@
     if (document.getElementById('dev-bar')) return;
     var bar = document.createElement('div');
     bar.id = 'dev-bar';
-    bar.style.cssText = 'position:fixed;bottom:14px;inset-inline-end:14px;z-index:60;display:flex;gap:6px;align-items:center;background:var(--color-surface-container-highest);padding:6px 10px;border-radius:999px;box-shadow:0 2px 8px rgba(0,0,0,.2);font-family:var(--font-ui);font-size:.8rem;';
+    bar.className = 'dev-bar';
     var iso = STATE.date ? STATE.date.toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10);
-    bar.innerHTML = '<span style="opacity:.7">תאריך (תצוגה):</span>' +
-      '<input type="date" id="dev-date" value="' + iso + '" style="font-family:inherit;border:1px solid var(--color-outline-variant);border-radius:8px;padding:3px 6px;background:var(--color-surface);color:var(--color-on-surface)">';
+    bar.innerHTML = '<span class="dev-bar-label">תאריך (תצוגה):</span>' +
+      '<input type="date" id="dev-date" value="' + iso + '">';
     document.body.appendChild(bar);
     document.getElementById('dev-date').onchange = function () {
       if (this.value) window.SiduronApp.setDate(this.value);

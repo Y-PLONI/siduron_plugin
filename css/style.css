@@ -223,7 +223,7 @@ body { overflow: hidden; -webkit-user-select: none; user-select: none; }
 
 /* ── Floating panels (rounded card, slides in from the inline-end edge: the left in RTL) ── */
 .backdrop {
-  position: fixed; inset: 0; background: color-mix(in srgb, var(--color-scrim, #000) 13%, transparent);
+  position: fixed; inset: 0; background: color-mix(in srgb, var(--color-scrim) 13%, transparent);
   opacity: 0; pointer-events: none; transition: opacity .18s ease-out; z-index: 1000;
 }
 .backdrop.open { opacity: 1; pointer-events: auto; }
@@ -231,7 +231,7 @@ body { overflow: hidden; -webkit-user-select: none; user-select: none; }
   position: fixed; top: 12px; bottom: 12px; inset-inline-end: 12px;
   width: min(380px, 92vw);
   background: var(--color-surface-container-high); color: var(--color-on-surface);
-  border-radius: var(--radius); box-shadow: 0 8px 24px color-mix(in srgb, var(--color-shadow, #000) 22%, transparent);
+  border-radius: var(--radius); box-shadow: 0 8px 24px color-mix(in srgb, var(--color-shadow) 22%, transparent);
   z-index: 1001; display: flex; flex-direction: column; overflow: hidden;
   opacity: 0; transform: translateX(28px); pointer-events: none;   /* LTR: starts off to the right */
   visibility: hidden;   /* closed panels leave the tab order and the a11y tree */
@@ -387,7 +387,7 @@ body { overflow: hidden; -webkit-user-select: none; user-select: none; }
   position: absolute; bottom: 16px; inset-inline-start: 16px; z-index: 20;
   display: flex; align-items: center; gap: 4px;
   background: var(--color-surface-container-highest); border-radius: var(--radius);
-  padding: 4px 8px; box-shadow: 0 8px 24px color-mix(in srgb, var(--color-shadow, #000) 22%, transparent);
+  padding: 4px 8px; box-shadow: 0 8px 24px color-mix(in srgb, var(--color-shadow) 22%, transparent);
 }
 .fs-btn {
   border: none; background: transparent; color: var(--color-on-surface);
@@ -439,6 +439,22 @@ body { overflow: hidden; -webkit-user-select: none; user-select: none; }
   margin: 12px 0; padding: 4px 12px; border-radius: var(--radius-sm);
   background: var(--color-surface-container); border: 1px solid var(--color-outline-variant);
   text-align: center;
+}
+
+/* ── Standalone preview only: date simulator bar (injectDevBar in js/app.js) ── */
+.dev-bar {
+  position: fixed; bottom: 16px; inset-inline-end: 16px; z-index: 60;
+  display: flex; align-items: center; gap: var(--space-sm);
+  background: var(--color-surface-container-highest); color: var(--color-on-surface);
+  padding: var(--space-sm) var(--space-smd); border-radius: var(--radius);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--color-shadow) 22%, transparent);
+  font-family: var(--font-ui); font-size: .875rem;
+}
+.dev-bar-label { color: var(--color-on-surface-variant); }
+.dev-bar input {
+  font-family: inherit; font-size: inherit; padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--color-outline-variant); border-radius: var(--radius);
+  background: var(--color-surface); color: var(--color-on-surface);
 }
 
 /* ── Utilities ── */
