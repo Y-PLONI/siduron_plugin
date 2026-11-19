@@ -110,7 +110,7 @@ body { overflow: hidden; }
 .badge-btn:hover { filter: brightness(.95); }
 .date-field {
   width: 100%; height: 40px; box-sizing: border-box;
-  border: 1.4px solid transparent; border-radius: var(--radius);
+  border: 1px solid transparent; border-radius: var(--radius);
   background: var(--c-on-surface-subtle); color: var(--c-on-surface);
   font-family: inherit; font-size: 1rem; padding-inline: 14px; text-align: start;
 }
@@ -171,7 +171,7 @@ body { overflow: hidden; }
 
 /* Accordions (optional / grouped content) */
 .s-optional, .s-group {
-  margin: 10px 0; border: 1px dashed var(--c-outline-variant);
+  margin: 10px 0; border: 1px solid var(--c-outline-variant);
   border-radius: var(--radius-sm); background: var(--c-surface-container);
   padding: 2px 12px;
 }
@@ -215,6 +215,7 @@ body { overflow: hidden; }
 /* כרטיס תוכן בתוך חלונית (ללא כותרת) — אחיד עם חלונית ההגדרות */
 .panel-card {
   background: var(--c-surface);
+  border: 1px solid var(--c-outline-variant);   /* outlined card, no shadow (DS 1.2) */
   border-radius: var(--radius);
   overflow: hidden;
   margin-top: 4px;
@@ -230,7 +231,7 @@ body { overflow: hidden; }
 .zmanim-loc svg { width: 17px; height: 17px; flex: none; color: var(--c-primary); }
 .zmanim-loc span { font-weight: 600; }
 .zman { display: flex; justify-content: space-between; align-items: center; padding: 11px 16px; }
-.panel-card > .zman + .zman { border-top: 1.5px solid var(--c-surface-container-highest); }
+.panel-card > .zman + .zman { border-top: 1px solid var(--c-surface-container-highest); }
 .z-name { color: var(--c-on-surface-variant); }
 .z-val { font-weight: 700; font-variant-numeric: tabular-nums; }
 
@@ -240,12 +241,13 @@ body { overflow: hidden; }
   color: var(--c-on-surface); padding: 11px 16px; font-size: .95rem; cursor: pointer;
   font-family: inherit;
 }
-.panel-card > .nav-item + .nav-item { border-top: 1.5px solid var(--c-surface-container-highest); }
+.panel-card > .nav-item + .nav-item { border-top: 1px solid var(--c-surface-container-highest); }
 .nav-item:hover { background: var(--c-primary-subtle); }
 
 /* Settings — titled cards + segmented controls */
 .settings-card {
   background: var(--c-surface);
+  border: 1px solid var(--c-outline-variant);
   border-radius: var(--radius);
   overflow: hidden;
   margin-top: 16px;
@@ -258,7 +260,7 @@ body { overflow: hidden; }
 }
 /* Divider between rows */
 .settings-card-body > .settings-row + .settings-row {
-  border-top: 1.5px solid var(--c-surface-container-highest);
+  border-top: 1px solid var(--c-surface-container-highest);
 }
 .settings-row { padding: 12px 16px; }
 .settings-row.stacked { display: flex; flex-direction: column; gap: 10px; }
@@ -302,7 +304,7 @@ body { overflow: hidden; }
 }
 .dropdown-field select {
   width: 100%; height: 40px;
-  border: 1.4px solid transparent; border-radius: var(--radius);
+  border: 1px solid transparent; border-radius: var(--radius);
   background: var(--c-on-surface-subtle);
   color: var(--c-on-surface);
   font-family: inherit; font-size: 1rem;
@@ -391,7 +393,7 @@ body { overflow: hidden; }
 .s-minyan-note {
   font-family: var(--ui-font); font-size: .78em; color: var(--c-on-surface-variant);
   margin: 10px 0; padding: 5px 12px; border-radius: var(--radius-sm);
-  background: var(--c-surface-container); border: 1px dashed var(--c-outline-variant);
+  background: var(--c-surface-container); border: 1px solid var(--c-outline-variant);
   text-align: center;
 }
 
