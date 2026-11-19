@@ -5,7 +5,7 @@
   "version": "4.0.0",
   "description": "סידור חכם",
   "author": "y.pl",
-  "homepage": "https://github.com/",
+  "homepage": "https://github.com/Y-PLONI/siduron_plugin",
   "entrypoint": "index.html",
   "icon": "icon/icon.png",
   "stability": "beta",
