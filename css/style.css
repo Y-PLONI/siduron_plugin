@@ -19,7 +19,10 @@
   --c-primary-subtle: rgba(103, 80, 164, 0.12);
   --c-on-surface-subtle: rgba(29, 27, 32, 0.07);   /* dropdown field fill (idle) */
   --c-on-surface-hover:  rgba(29, 27, 32, 0.12);   /* dropdown field fill (hover/focus) */
-  --c-primary-border:    rgba(103, 80, 164, 0.22); /* dropdown field focus border */
+  --c-primary-border:    rgba(103, 80, 164, 0.22); /* outlined action button border */
+  /* State layers (DS 2.1.1): onSurface 8% hover, 12% pressed. */
+  --state-hover: color-mix(in srgb, var(--c-on-surface) 8%, transparent);
+  --state-pressed: color-mix(in srgb, var(--c-on-surface) 12%, transparent);
 
   --font-size-base: 22px;
   --line-height: 1.85;
@@ -67,7 +70,8 @@ body { overflow: hidden; }
 }
 .tool-btn svg { width: 21px; height: 21px; }
 .tool-btn[hidden] { display: none; }
-.tool-btn:hover { background: var(--c-primary-subtle); color: var(--c-on-surface); }
+@media (hover: hover) { .tool-btn:hover { background-color: var(--state-hover); color: var(--c-on-surface); } }
+.tool-btn:active { background-color: var(--state-pressed); color: var(--c-on-surface); }
 
 .header-date { display: flex; align-items: center; gap: 10px; margin: 0 0 2px; }
 .hdr-date { font-size: 1.05rem; font-weight: 600; }
@@ -85,7 +89,8 @@ body { overflow: hidden; }
   padding: 6px 10px; border-radius: var(--radius); font-family: inherit;
   font-size: .85rem; font-weight: 600; cursor: pointer; white-space: nowrap;
 }
-.mini-tab:hover { background: var(--c-primary-subtle); }
+@media (hover: hover) { .mini-tab:hover { background-color: var(--state-hover); } }
+.mini-tab:active { background-color: var(--state-pressed); }
 .mini-tab.active { background: var(--c-secondary-container); color: var(--c-on-secondary-container); }
 /* Narrow screens: the active mini-tab already names the prayer. */
 @media (max-width: 560px) { .scrolled .hdr-svc { display: none; } .mini-tab { padding: 6px 8px; font-size: .8rem; } }
@@ -107,14 +112,15 @@ body { overflow: hidden; }
 .badge.b-purple { background: #ECE0FF; color: #3F2A6B; }
 .badge.b-teal   { background: #CDEFEC; color: #0B4C49; }
 .badge-btn { border: none; font-family: inherit; cursor: pointer; }
-.badge-btn:hover { filter: brightness(.95); }
+@media (hover: hover) { .badge-btn:hover { background-image: linear-gradient(var(--state-hover), var(--state-hover)); } }
+.badge-btn:active { background-image: linear-gradient(var(--state-pressed), var(--state-pressed)); }
 .date-field {
   width: 100%; height: 40px; box-sizing: border-box;
   border: 1px solid transparent; border-radius: var(--radius);
   background: var(--c-on-surface-subtle); color: var(--c-on-surface);
   font-family: inherit; font-size: 1rem; padding-inline: 14px; text-align: start;
 }
-.date-field:hover { background: var(--c-on-surface-hover); }
+@media (hover: hover) { .date-field:hover { background-image: linear-gradient(var(--state-hover), var(--state-hover)); } }
 .date-field:focus { background: var(--c-on-surface-hover); border-color: var(--c-primary); }
 .badge.b-ghost  { background: transparent; color: var(--c-on-surface-variant); border: 1px solid var(--c-outline-variant); }
 
@@ -132,7 +138,8 @@ body { overflow: hidden; }
   padding: 10px 16px; font-size: .95rem; font-weight: 600; cursor: pointer;
   border-bottom: 3px solid transparent; white-space: nowrap; font-family: inherit;
 }
-.tab:hover { color: var(--c-on-surface); }
+@media (hover: hover) { .tab:hover { color: var(--c-on-surface); background-color: var(--state-hover); } }
+.tab:active { background-color: var(--state-pressed); }
 .tab.active { color: var(--c-primary); border-bottom-color: var(--c-primary); }
 
 /* ── Reader ── */
@@ -242,7 +249,8 @@ body { overflow: hidden; }
   font-family: inherit;
 }
 .panel-card > .nav-item + .nav-item { border-top: 1px solid var(--c-surface-container-highest); }
-.nav-item:hover { background: var(--c-primary-subtle); }
+@media (hover: hover) { .nav-item:hover { background-color: var(--state-hover); } }
+.nav-item:active { background-color: var(--state-pressed); }
 
 /* Settings — titled cards + segmented controls */
 .settings-card {
@@ -286,7 +294,8 @@ body { overflow: hidden; }
   transition: background .15s, color .15s;
 }
 .segmented button + button { border-inline-start: 1px solid var(--c-outline-variant); }
-.segmented button:hover:not(.active) { background: var(--c-primary-subtle); }
+@media (hover: hover) { .segmented button:hover:not(.active) { background-color: var(--state-hover); } }
+.segmented button:active:not(.active) { background-color: var(--state-pressed); }
 .segmented button.active {                          /* selected segment */
   background: var(--c-secondary-container);
   color: var(--c-on-secondary-container);
@@ -312,7 +321,7 @@ body { overflow: hidden; }
   cursor: pointer; appearance: none; -webkit-appearance: none;
   transition: background .12s, border-color .12s;
 }
-.dropdown-field select:hover { background: var(--c-on-surface-hover); }
+@media (hover: hover) { .dropdown-field select:hover { background-image: linear-gradient(var(--state-hover), var(--state-hover)); } }
 .dropdown-field select:focus { background: var(--c-on-surface-hover); border-color: var(--c-primary); }
 .switch {
   width: 46px; height: 26px; border-radius: 13px; border: 2px solid var(--c-outline);
@@ -340,8 +349,8 @@ body { overflow: hidden; }
   border-radius: var(--radius);
   cursor: pointer;
 }
-.set-action:hover:not(:disabled) { background: var(--c-primary); color: var(--c-on-primary); }
-.set-action:disabled { opacity: .55; cursor: default; }
+@media (hover: hover) { .set-action:hover:not(:disabled) { background-image: linear-gradient(var(--state-hover), var(--state-hover)); } }
+.set-action:active:not(:disabled) { background-image: linear-gradient(var(--state-pressed), var(--state-pressed)); }
 
 /* ── Font bar ── */
 .fontbar {
@@ -354,7 +363,8 @@ body { overflow: hidden; }
   border: none; background: transparent; color: var(--c-on-surface);
   width: 34px; height: 30px; border-radius: var(--radius); cursor: pointer; font-size: .9rem; font-weight: 700;
 }
-.fs-btn:hover { background: var(--c-primary-subtle); }
+@media (hover: hover) { .fs-btn:hover { background-color: var(--state-hover); } }
+.fs-btn:active { background-color: var(--state-pressed); }
 .fs-val { min-width: 26px; text-align: center; font-size: .85rem; font-variant-numeric: tabular-nums; }
 
 /* ── Extras (תוספות) ── */
@@ -370,12 +380,14 @@ body { overflow: hidden; }
   font-size: 1rem; font-weight: 600; cursor: pointer; font-family: var(--prayer-font);
   text-align: center; transition: .15s;
 }
-.extra-card:hover { background: var(--c-primary-subtle); border-color: var(--c-primary); }
+@media (hover: hover) { .extra-card:hover { background-color: var(--state-hover); border-color: var(--c-primary); } }
+.extra-card:active { background-color: var(--state-pressed); border-color: var(--c-primary); }
 .extras-back {
   display: inline-block; margin: 6px 0 4px; border: none; background: transparent;
   color: var(--c-primary); font-size: .95rem; font-weight: 600; cursor: pointer; font-family: inherit;
 }
-.extras-back:hover { text-decoration: underline; }
+@media (hover: hover) { .extras-back:hover { text-decoration: underline; } }
+.extras-back:active { background-color: var(--state-pressed); }
 
 /* Instruction (rubric) + special-day inserts inside prayer text */
 .s-instruction {
@@ -400,6 +412,9 @@ body { overflow: hidden; }
 /* ── Utilities ── */
 .muted { color: var(--c-on-surface-variant); }
 .center { text-align: center; padding: 40px 16px; }
+
+/* Disabled controls: Material 38% (DS 2.1.1) */
+button:disabled, select:disabled, input:disabled { opacity: .38; cursor: default; }
 
 /* ── Reduced motion (DS 2.5.5) ── */
 @media (prefers-reduced-motion: reduce) {
