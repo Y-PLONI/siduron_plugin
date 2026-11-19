@@ -79,9 +79,9 @@ function readPng(file) {
   return { w: w, h: h, px: out };
 }
 const png = readPng(path.join(ROOT, 'icon', 'icon.png'));
-// The icon is a picture (a gilded סידור, 512×512) — no longer the old text-line
+// The icon is a picture (a gilded סידור, 128×128) — no longer the old text-line
 // glyph, so check the format rather than the layout of text lines.
-check('icon is a square PNG of at least 256px', png.w === png.h && png.w >= 256, png.w + 'x' + png.h);
+check('icon is a square PNG of at least 64px', png.w === png.h && png.w >= 64, png.w + 'x' + png.h);
 check('icon has visible content (not blank)', (function () {
   let opaque = 0;
   for (let i = 3; i < png.px.length; i += 4) if (png.px[i] > 100) opaque++;
@@ -415,8 +415,27 @@ setTimeout(async function () {
   check('a hidden tool button is really hidden (CSS rule present)',
     /\.tool-btn\[hidden\]\s*\{\s*display:\s*none/.test(fs.readFileSync(path.join(ROOT, 'css/style.css'), 'utf8')));
   check('manifest declares plugin.open_other', manifest.permissions.indexOf('plugin.open_other') >= 0);
-  check('manifest declares app.info.read (listInstalled / getGrantedPermissions)',
-    manifest.permissions.indexOf('app.info.read') >= 0);
+  // Baseline permissions are granted to every plugin — declaring them is redundant.
+  const BASELINE = ['app.info.read', 'plugin.storage.read', 'plugin.storage.write',
+    'ui.feedback', 'events.subscribe:theme.changed'];
+  check('manifest does not redundantly declare baseline permissions',
+    BASELINE.every(p => manifest.permissions.indexOf(p) < 0),
+    manifest.permissions.filter(p => BASELINE.indexOf(p) >= 0).join(', '));
+  // The SDK spec lives outside this repo — skip (don't fail) when it's absent.
+  let sdkSpec = null;
+  try {
+    sdkSpec = JSON.parse(fs.readFileSync(
+      path.resolve(ROOT, '..', 'otzaria_project', 'docs', 'plugin-sdk', 'spec.json'), 'utf8'));
+  } catch (e) { /* not available */ }
+  if (sdkSpec && Array.isArray(sdkSpec.permissions)) {
+    const unknown = manifest.permissions.filter(p => sdkSpec.permissions.indexOf(p) < 0);
+    check('every declared permission exists in the SDK spec', unknown.length === 0, unknown.join(', '));
+  } else {
+    console.log('  - SDK spec.json not found — skipping permission-name validation');
+  }
+  check('manifest declares events.subscribe:plugin.permissions_changed (app.js listens to it)',
+    !/['"]plugin\.permissions_changed['"]/.test(fs.readFileSync(path.join(ROOT, 'js/app.js'), 'utf8')) ||
+    manifest.permissions.indexOf('events.subscribe:plugin.permissions_changed') >= 0);
   const cmpVer = (a, b) => {
     const x = a.split('.').map(Number), y = b.split('.').map(Number);
     for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (d) return d; }
