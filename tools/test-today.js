@@ -121,6 +121,26 @@ setTimeout(async function () {
   await I.setCustomDate('not-a-date');
   check('invalid input is ignored (stays on today)', S.customDate === null);
 
+  console.log('\n══ plugin.suspended / plugin.resumed ══');
+  {
+    const spy = { set: 0, clear: 0 };
+    const rs = win.setInterval, rc = win.clearInterval;
+    win.setInterval = (...a) => { spy.set++; return rs.apply(win, a); };
+    win.clearInterval = (...a) => { spy.clear++; return rc.apply(win, a); };
+    check('the host events are handled', typeof handlers['plugin.suspended'] === 'function' && typeof handlers['plugin.resumed'] === 'function');
+    handlers['plugin.suspended']();
+    check('suspended clears the live timer', spy.clear === 1, spy.clear);
+    handlers['plugin.suspended']();
+    check('a second suspended is harmless (idempotent stop)', spy.clear === 1, spy.clear);
+    handlers['plugin.resumed']();
+    check('resumed restarts the timer', spy.set === 1, spy.set);
+    handlers['plugin.resumed']();
+    check('a second resumed does not start a second timer', spy.set === 1, spy.set);
+    handlers['plugin.suspended']();
+    win.setInterval = rs; win.clearInterval = rc;
+    handlers['plugin.resumed']();
+  }
+
   console.log('\n══ זמני היום: מזהי זמנים של אוצריא ══');
   setNow(2026, 7, 23, 14, 0);
   const realOtz = win.Otzaria;

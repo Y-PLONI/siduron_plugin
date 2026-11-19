@@ -468,6 +468,26 @@
     liveBusy = true;
     refreshAndRerender().then(function () { liveBusy = false; }, function () { liveBusy = false; });
   }
+  // The once-a-minute check that rolls the day over. Start/stop are idempotent
+  // (the host may call them repeatedly): plugin.suspended stops the timer — the
+  // plugin must not poll while its tab is hidden — and plugin.boot /
+  // plugin.resumed start it again. `liveSuspended` keeps a late boot from
+  // restarting it inside a suspension.
+  var liveTimer = null, liveReady = false, liveSuspended = false;
+  function startLive() {
+    if (liveTimer !== null || !liveReady || liveSuspended) return;
+    liveTimer = setInterval(liveTick, 60000);
+  }
+  function stopLive() {
+    if (liveTimer !== null) { clearInterval(liveTimer); liveTimer = null; }
+    liveBusy = false;
+  }
+  function onSuspended() { liveSuspended = true; stopLive(); }
+  function onResumed() {
+    liveSuspended = false;
+    startLive();
+    liveTick();                     // catch up on a שקיעה/midnight passed while hidden
+  }
 
   // Recompute the day flags for the header/day services and for ערבית.
   function setPrayerDays(now) {
@@ -1188,7 +1208,7 @@
     };
   }
 
-  var liveTimer = null;
+  var standaloneLiveWired = false;
   async function boot() {
     try {
       kivunReady = true;
@@ -1208,8 +1228,12 @@
       renderTabs();
       buildSettings();
       openService(STATE.service || 'shacharit');
-      if (!liveTimer) {
-        liveTimer = setInterval(liveTick, 60000);
+      liveReady = true;
+      startLive();
+      // Without Otzaria (standalone preview) there is no plugin.resumed, so the
+      // page's own visibility/focus events stand in for it.
+      if (!hasOtzaria() && !standaloneLiveWired) {
+        standaloneLiveWired = true;
         document.addEventListener('visibilitychange', function () { if (!document.hidden) liveTick(); });
         window.addEventListener('focus', liveTick);
       }
@@ -1236,7 +1260,8 @@
     window.Otzaria.on('theme.changed', applyTheme);
     // The plugin follows TODAY, not Otzaria's calendar selection, so
     // calendar.date_changed is deliberately not handled.
-    window.Otzaria.on('plugin.resumed', liveTick);
+    window.Otzaria.on('plugin.suspended', onSuspended);
+    window.Otzaria.on('plugin.resumed', onResumed);
     window.Otzaria.on('settings.changed', function (e) {
       // The selected city lives in the calendar state; changing it re-derives
       // our location + ארץ-ישראל and can flip flags (tefillin, mussaf, …),
