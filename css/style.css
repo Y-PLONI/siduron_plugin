@@ -59,9 +59,11 @@ html, body {
   color: var(--c-on-surface);
   font-family: var(--ui-font);
 }
-body { overflow: hidden; }
+body { overflow: hidden; -webkit-user-select: none; user-select: none; }
+/* Chrome is not selectable; prayer text and form fields are. */
+.prayer, .prayer *, input, select, textarea { -webkit-user-select: text; user-select: text; }
 
-.app { display: flex; flex-direction: column; height: 100vh; }
+.app { display: flex; flex-direction: column; height: 100%; }
 
 /* ── Header ── */
 .header {
@@ -82,9 +84,12 @@ body { overflow: hidden; }
 @media (hover: hover) { .tool-btn:hover { background-color: var(--state-hover); color: var(--c-on-surface); } }
 .tool-btn:active { background-color: var(--state-pressed); color: var(--c-on-surface); }
 
-.header-date { display: flex; align-items: center; gap: 12px; margin: 0 0 2px; }
+.header-date { display: flex; align-items: center; gap: 12px; margin: 0 0 2px; min-width: 0; }
+.header-tools { flex: none; }
 .hdr-date { font-size: 1rem; font-weight: 600; }
 .hdr-season { font-size: .875rem; color: var(--c-on-surface-variant); }
+/* Narrow widths: the date and season truncate instead of pushing the tool buttons out. */
+.hdr-date, .hdr-season { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* Compact prayer title — only shown once the reader is scrolled. */
 .hdr-svc { font-size: 1rem; font-weight: 700; color: var(--c-primary); display: none; }
 .scrolled .hdr-svc { display: inline; }
@@ -190,8 +195,16 @@ body { overflow: hidden; }
   color: var(--c-on-surface-variant); padding: 8px 2px; list-style: none;
 }
 .s-optional > summary::-webkit-details-marker, .s-group > summary::-webkit-details-marker { display: none; }
-.s-optional > summary::before, .s-group > summary::before { content: '▸ '; color: var(--c-primary); }
-.s-optional[open] > summary::before, .s-group[open] > summary::before { content: '▾ '; }
+.s-optional > summary::before, .s-group > summary::before {
+  /* CSS chevron: points toward the reading direction when closed, down when open */
+  content: ''; display: inline-block; flex: none; width: 8px; height: 8px;
+  margin-inline-end: 12px; vertical-align: middle;
+  border-right: 2px solid var(--c-primary); border-bottom: 2px solid var(--c-primary);
+  transform: rotate(-45deg);               /* LTR closed: points right */
+  transition: transform .2s ease;
+}
+[dir=rtl] .s-optional > summary::before, [dir=rtl] .s-group > summary::before { transform: rotate(135deg); }   /* RTL closed: points left */
+.s-optional[open] > summary::before, .s-group[open] > summary::before { transform: rotate(45deg); }   /* open: points down */
 .s-hint { font-weight: 400; opacity: .7; font-size: .8em; }
 .s-optional-body, .s-group-body { padding: 4px 0 12px; }
 
