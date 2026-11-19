@@ -213,6 +213,12 @@ setTimeout(async function () {
   const cssAll = fs.readFileSync(path.join(ROOT, 'css/style.css'), 'utf8');
   check('mini-tab .active is not colour-only (font-weight 700)', /\.mini-tab\.active\s*\{[^}]*font-weight:\s*700/.test(cssAll));
 
+  // Tooltips: every icon-only / aria-label button carries a title too (DS: tooltip = accessible name).
+  const noTitle = Array.from(doc.querySelectorAll('button[aria-label]')).filter(b => b.getAttribute('role') !== 'switch' && !b.getAttribute('title'));
+  check('every labelled button has a tooltip' + (noTitle.length ? ' (missing: ' + noTitle.map(b => b.id || b.className).join(',') + ')' : ''), noTitle.length === 0);
+  ['fs-dec', 'fs-inc'].forEach(id => { const b = doc.getElementById(id); check(id + ': title equals its aria-label', b.title === b.getAttribute('aria-label') && b.title.length > 0); });
+  doc.querySelectorAll('[data-close]').forEach(b => check('panel close button title "סגירה"', b.title === 'סגירה' && b.getAttribute('aria-label') === 'סגירה'));
+
   // Fixed top bar with the plugin name (DESIGN_GUIDE: Top Bar).
   const topbar = doc.querySelector('header.topbar');
   check('top bar: header.topbar with the plugin name in <h1>', !!topbar && !!topbar.querySelector('h1') && topbar.querySelector('h1').textContent === 'סידורון');
