@@ -17,7 +17,8 @@
     "library.content.read",
     "ui.create_shortcut",
     "plugin.open_other",
-    "events.subscribe:settings.changed"
+    "events.subscribe:settings.changed",
+    "events.subscribe:plugin.permissions_changed"
   ],
   "network": {
     "enabled": false,
